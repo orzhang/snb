@@ -23,6 +23,9 @@ struct snb_session
 	struct snb_session* next;
 	snb_command_pipe_t pipe_in;
 	snb_command_pipe_t pipe_out;
+	snb_msg_buf_t * msg_buf_in;
+	snb_msg_buf_t * msg_buf_out;
+	struct sockaddr_in addr;
 	uint64_t seq_num;
 	int sock;
 	int id;
@@ -43,4 +46,11 @@ nt snb_session_pipe_push_command(snb_command_pipe_t * pipe,
 	snb_command_t* cmd);
 
 snb_command_t* snb_session_pipe_pop_command(snb_command_pipe_t * pipe);
+
+const snb_session_t*  snb_iteritor_session_begin();
+
+const snb_session_t*  snb_iteritor_session_next(const snb_session_t* it);
+
+const snb_session_t*  snb_iteritor_session_end();
+
 #endif

@@ -817,3 +817,29 @@ snb_command_t* snb_command_rw_ack(uint16_t LUN, uint8_t * data, uint64_t offset,
 	plen += sizeof(cmd->LUN);
 	return ((snb_command_t*)cmd);
 }
+
+snb_msg_buf_t* snb_alloc_msg_buf()
+{
+	snb_msg_buf_t* buf = malloc(sizeof(*buf));
+	if(buf == NULL)
+		return NULL;
+	if ((buf->buf = malloc(MAX_BUFFER))
+	{
+		free(buf);
+		return NULL;
+	}
+	buf->pbuf = buf->buf;
+	buf->expect = 0;
+	buf->msg_state = SNB_RECV_STATE_HEAD;
+	return buf;
+}
+
+void snb_free_msg_buf(snb_msg_buf_t** buf)
+{
+	if(*buf == NULL)
+		return;
+	free(*buf->buf)
+	*buf->buf = NULL;
+	free(*buf);
+	*buf = NULL;
+}

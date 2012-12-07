@@ -14,9 +14,23 @@
 #define SNB_IS_R_CMD (x) ((x & SNB_CMD_ID_RW_MASK_R) == 0)
 #define SNB_IS_FW_CMD (x) ((x & SNB_CMD_ID_RW_MASK_W) && (x & SNB_CMD_ID_RW_MAKS_FLUSH))
 
+#define MAX_BUFFER (1024*1024*10)
+#define SNB_RECV_STATE_HEAD 0
+#define SNB_RECV_STATE_BODY 1
+#define SNB_RECV_STATE_END 3
+
 #define SNB_COMMAND_HEAD_SIZE (20)
 
 #include <snb_common.h>
+
+typedef struct snb_msg_buf
+{
+	uint8_t* buf;
+	uint8_t* pbuf;
+	uint32_t expect;
+	uint32_t buf_size;
+	int msg_state;
+} snb_msg_buf_t;
 
 typedef enum command_type {
 	ask = 0,
@@ -104,6 +118,9 @@ typedef struct snb_command_login
 
 typedef snb_command_no_params_t snb_command_login_ack_t;
 
+snb_msg_buf_t* snb_alloc_msg_buf();
+void snb_free_msg_buf(snb_msg_buf_t** buf);
+
 snb_command_t* snb_command_list();
 snb_command_t* snb_command_list_ack(uint16_t * LUNs, uint16_t size, snb_command_rc_t rc);
 
@@ -126,4 +143,7 @@ snb_command_t* snb_session_pop_command(snb_session_t* session);
 
 int snb_pack_command(uint8_t ** buffer, snb_command_t * pcmd);
 int snb_unpack_command(uint8_t * buffer, snb_command_t ** pcmd);
+
+#define SNB_COMMAND_HEAD_ATTR_LENGTH(x) ntohll(*(uint64_t*)(x + 12)
+
 #endif
