@@ -2,6 +2,38 @@
 #include <snb_session.h>
 #include <snb_lun_service.h>
 
+
+void snb_server_process_login(snb_command_t* cmd)
+{
+	snb_command_login_t* login = (snb_command_login_t*)cmd;
+	snb_command_login_ack_t* ack;
+	ack = snb_create_command_login_ack(snb_sucess);
+	snb_session_push_command(cmd->parent, ack, pipe_out);
+}
+
+void snb_server_process_list(snb_command_t* cmd)
+{
+
+}
+
+void snb_server_process_info(snb_command_t* cmd)
+{
+
+}
+
+void snb_server_process_rw(snb_command_t* cmd)
+{
+	snb_command_rw_t* rw_cmd = (snb_command_rw_t*)cmd;
+	snb_LUN_service_push_command(rw_cmd->LUN, cmd);
+}
+
+void snb_server_process_ping(snb_command_t* cmd)
+{
+	snb_command_ping_ack_t *ack = NULL;
+	ack = snb_create_command_ping_ack(snb_sucess);
+	snb_session_push_command(cmd->parent, ack, pipe_out);
+}
+
 void snb_server_dispatch(snb_session_t* session)
 {
 	snb_command_t* cmd = NULL;
@@ -25,34 +57,4 @@ void snb_server_dispatch(snb_session_t* session)
 		default:
 			break;
 	}
-}
-
-void snb_server_process_login(snb_command_t* cmd)
-{
-	snb_command_login_t * login = (snb_command_login_t*)cmd;
-	snb_command_login_ack(snb_sucess);
-	snb_session_push_command(cmd->parent, ack);
-}
-
-void snb_server_process_list(snb_command_t* cmd)
-{
-
-}
-
-void snb_server_process_info(snb_command_t* cmd)
-{
-
-}
-
-void snb_server_process_rw(snb_command_t* cmd)
-{
-	snb_command_rw_t* rw_cmd = (snb_command_rw_t*)cmd;
-	snb_LUN_service_push_command(cmd);
-}
-
-void snb_server_process_ping(snb_command_t* cmd)
-{
-	snb_command_ping_ack_t *ack = NULL;
-	ack = snb_command_ping_ack();
-	snb_session_push_command(cmd->parent, ack);
 }

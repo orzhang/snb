@@ -58,18 +58,18 @@ int snb_session_push_command(snb_session_t* session,
 	if(io == pipe_in)
 		snb_session_pipe_push_command(&session->pipe_in, cmd);
 	else
-		snb_session_pipe_push_command(&session->pipe_out cmd);
+		snb_session_pipe_push_command(&session->pipe_out, cmd);
 	return 0;
 }
 
-snb_command_t* snb_session_pop_command(snb_session_t* session)
+snb_command_t* snb_session_pop_command(snb_session_t* session, pipe_type_t io)
 {
 	snb_command_t* cmd = NULL;
 
 	if(io == pipe_in)
-		cmd = snb_session_pipe_pop_command(&session->pipe_in, cmd);
+		cmd = snb_session_pipe_pop_command(&session->pipe_in);
 	else
-		cmd = snb_session_pipe_pop_command(&session->pipe_out cmd);
+		cmd = snb_session_pipe_pop_command(&session->pipe_out);
 	return cmd;
 }
 
@@ -82,23 +82,24 @@ snb_session_t* snb_add_session(int sock)
 		if(session == NULL)
 			return NULL;
 	session->next = NULL;
-	session->cmd_list_head = NULL;
-	session->cmd_lead_tail = NULL;
-	session->passwd = {NULL, NULL};
+	session->passwd.usr = NULL;
+	session->passwd.passwd = NULL;
 	session->seq_num = 0;
 	session->sock = 0;
 	session->id = snb_session_new_id();
-	if((session->msg_buf_in = snb_alloc_msg_buf()) == NULL)
+	if((session->msg_buf_in = snb_alloc_msg_buf(SNB_MSG_MAX_BUFFER)) == NULL)
 	{
 		free(session);
 		return NULL;
 	}
-	if((session->msg_buf_out = snb_alloc_msg_buf()) == NULL)
+	session->msg_buf_in->state = SNB_MSG_RECV_STATE_HEAD;
+	if((session->msg_buf_out = snb_alloc_msg_buf(SNB_MSG_MAX_BUFFER)) == NULL)
 	{
 		free(session->msg_buf_in);
 		free(session);
 		return NULL;
 	}
+	session->msg_buf_in->state = SNB_MSG_SEND_STATE_START;
 	if(session_list.head == NULL && session_list.rear == NULL)
 	{
 		session_list.head = session;

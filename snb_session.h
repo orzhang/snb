@@ -9,13 +9,13 @@ typedef enum {
 	pipe_in = 0,
 	pipe_out
 } pipe_type_t;
-/*
+
 typedef struct snb_passwd
 {
-	const char * usr;
-	const char * passwd;
+	char * usr;
+	char * passwd;
 } snb_passwd_t;
-*/
+
 typedef struct snb_command_pipe {
 	snb_command_t* cmd_list_head;
 	snb_command_t* cmd_list_tail;
@@ -28,6 +28,7 @@ struct snb_session
 	snb_command_pipe_t pipe_out;
 	snb_msg_buf_t* msg_buf_in;
 	snb_msg_buf_t* msg_buf_out;
+	snb_passwd_t passwd;
 	int state;
 	struct sockaddr_in addr;
 	uint32_t seq_num;
