@@ -88,7 +88,17 @@ snb_session_t* snb_add_session(int sock)
 	session->seq_num = 0;
 	session->sock = 0;
 	session->id = snb_session_new_id();
-
+	if((session->msg_buf_in = snb_alloc_msg_buf()) == NULL)
+	{
+		free(session);
+		return NULL;
+	}
+	if((session->msg_buf_out = snb_alloc_msg_buf()) == NULL)
+	{
+		free(session->msg_buf_in);
+		free(session);
+		return NULL;
+	}
 	if(session_list.head == NULL && session_list.rear == NULL)
 	{
 		session_list.head = session;
@@ -148,4 +158,21 @@ snb_session_t* snb_find_session(int sock)
 		session = session->next;
 	}
 	return NULL;
+}
+
+const snb_session_t*  snb_iteritor_session_begin()
+{
+	return session_list.head;
+}
+
+const snb_session_t*  snb_iteritor_session_next(const snb_session_t* it)
+{
+	if(it == NULL)
+		return NULL;
+	return it->next;
+}
+
+const snb_session_t*  snb_iteritor_session_end()
+{
+	return session_list.rear;
 }

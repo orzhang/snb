@@ -1,6 +1,7 @@
-#include <stdlib.h>
-#include <string.h>
+
+#include <snb_common.h>
 #include <snb_protocal.h>
+#include <snb_session.h>
 
 static int sub_pack_head(uint8_t* buffer, snb_command_t *pcmd);
 
@@ -25,78 +26,73 @@ static int snb_unpack_info_command(const uint8_t* buffer, const snb_command_t * 
 static int snb_unpack_list_command(const uint8_t* buffer, const snb_command_t * base,
 	snb_command_t ** pcmd);
 
-int snb_pack_command(uint8_t ** buffer, snb_command_t * pcmd)
+int snb_pack_command(uint8_t * buffer, size_t size, snb_command_t * pcmd)
 {
-	uint8_t * cmd_buff;
-	cmd_buff = SNB_MALLOC(pcmd->length);
-	if(buffer == NULL || cmd_buff == NULL)
+	/*
+	if(size < pcmd->length)
 		return -1;
-	*buffer = cmd_buff
+	if(cmd_buff == NULL)
+		return -1;
 	switch(pcmd->type)
 	{
 		case SNB_CMD_ID_LIST:
-			if(sub_pack_head(cmd_buff, pcmd) ||
-				snb_pack_list_command(cmd_buff + SNB_COMMAND_HEAD_SIZE, pcmd))
+			if(sub_pack_head(buffer, pcmd) ||
+				snb_pack_list_command(buffer + SNB_COMMAND_HEAD_SIZE, (snb_command_list_t*)pcmd))
 			{
-				SNB_SNB_FREE(cmd_buff);
 				return -1;
 			}
 			return 0;			
 			break;
 		case SNB_CMD_ID_INFO:
-			if(sub_pack_head(cmd_buff, pcmd) ||
-				sub_pack_info_command(cmd_buff + SNB_COMMAND_HEAD_SIZE, pcmd))
+			if(sub_pack_head(buffer, pcmd) ||
+				sub_pack_info_command(buffer + SNB_COMMAND_HEAD_SIZE, (snb_command_info_t*)pcmd))
 			{
-				SNB_SNB_FREE(cmd_buff);
 				return -1;
 			}
 			return 0;
 			break;
 		case SNB_CMD_ID_PING:
-			if(sub_pack_head(cmd_buff, pcmd) ||
-				sub_pack_ping_command(cmd_buff + SNB_COMMAND_HEAD_SIZE, pcmd))
+			if(sub_pack_head(buffer, pcmd) ||
+				sub_pack_ping_command(buffer + SNB_COMMAND_HEAD_SIZE, (snb_command_ping_t*)pcmd))
 			{
-				SNB_SNB_FREE(cmd_buff);
 				return -1;
 			}
 			return 0;
 			break;
 		case SNB_CMD_ID_LOGIN:
-			if(sub_pack_head(cmd_buff, pcmd) ||
-				sub_pack_login_command(cmd_buff + SNB_COMMAND_HEAD_SIZE, pcmd))
+			if(sub_pack_head(buffer, pcmd) ||
+				sub_pack_login_command(buffer + SNB_COMMAND_HEAD_SIZE, (snb_command_login_t*)pcmd))
 			{
-				SNB_SNB_FREE(cmd_buff);
 				return -1;
 			}
 			return 0;
 			break;
 		case SNB_CMD_ID_RW:
-			if(sub_pack_head(cmd_buff, pcmd) ||
-				sub_pack_rw_command(cmd_buff + SNB_COMMAND_HEAD_SIZE, pcmd))
+			if(sub_pack_head(buffer, pcmd) ||
+				sub_pack_rw_command(buffer + SNB_COMMAND_HEAD_SIZE, (snb_command_rw_t*)pcmd))
 			{
-				SNB_SNB_FREE(cmd_buff);
 				return -1;
 			}
 			return 0;
 			break;
 		default:
 		return -1;
-	}
+	}*/
 	return -1;
 }
 
 int sub_pack_head(uint8_t * buffer, snb_command_t *pcmd)
 {
-	uint64_t * pbuffer_64;
+	uint32_t * pbuffer_32;
 	if(buffer == NULL || pcmd == NULL)
 		return -1;
 	buffer[0] = pcmd->id;
 	buffer[1] = pcmd->type;
 	buffer[2] = pcmd->proxy;
 	buffer[3] = pcmd->rc;
-	pbuffer_64 = (uint64_t*) &buffer[4];
-	pbuffer_64[0] = htonll(pcmd->seq_num);
-	pbuffer_64[1] = htonll(pcmd->length);
+	pbuffer_32 = (uint32_t*) &buffer[4];
+	pbuffer_32[0] = htonl(pcmd->seq_num);
+	pbuffer_32[1] = htonl(pcmd->length);
 	return 0;
 }
 
@@ -104,19 +100,19 @@ int snb_pack_rw_command(uint8_t * buffer, snb_command_t *pcmd)
 {
 	snb_command_rw_t * cmd = (snb_command_rw_t*)pcmd;
 	uint8_t * pbuffer = buffer;
-	uint16_t *pbuffer_16 = buffer + 16;
-	uint64_t * pbuffer_64 = buffer;
-	uint64_t pa_size = 0;
+	uint16_t *pbuffer_16 = buffer + 8;
+	uint32_t * pbuffer_32 = buffer;
+	uint32_t pa_size = 0;
 
 	if (buffer == NULL)
 		return -1;
 
 	if (pcmd->type == ask)
 	{
-		pbuffer_64[0] = ntohll(cmd->offset);
-		pbuffer_64[1] = ntohll(cmd->size);
+		pbuffer_32[0] = ntohl(cmd->offset);
+		pbuffer_32[1] = ntohl(cmd->size);
 		pbuffer_16[0] = ntohs(cmd->LUN);
-		pbuffer += 18;
+		pbuffer += 10;
 		*pbuffer = cmd->rw_mask;
 		pbuffer++;
 		if (SNB_IS_W_CMD(cmd->rw_mask))
@@ -129,10 +125,10 @@ int snb_pack_rw_command(uint8_t * buffer, snb_command_t *pcmd)
 	}
 	else
 	{
-		pbuffer_64[0] = ntohll(cmd->offset);
-		pbuffer_64[1] = ntohll(cmd->size);
+		pbuffer_32[0] = ntohl(cmd->offset);
+		pbuffer_32[1] = ntohl(cmd->size);
 		pbuffer_16[0] = ntohs(cmd->LUN);
-		pbuffer += 18;
+		pbuffer += 10;
 		*pbuffer = cmd->rw_mask;
 		pbuffer++;
 		if (SNB_IS_R_CMD(cmd->rw_mask))
@@ -149,7 +145,7 @@ int snb_pack_rw_command(uint8_t * buffer, snb_command_t *pcmd)
 int snb_pack_login_command(uint8_t * buffer, snb_command_t *pcmd)
 {
 	uint8_t len1= 0, len2 = 0;
-	uint64_t pa_size = 0;
+	uint32_t pa_size = 0;
 	if (buffer == NULL)
 		return -1;
 
@@ -195,7 +191,7 @@ int snb_pack_ping_command(uint8_t * buffer, snb_command_t *pcmd)
 
 int snb_pack_info_command(uint8_t * buffer, snb_command_t *pcmd)
 {
-	uint64_t pa_size = 0;
+	uint32_t pa_size = 0;
 	uint16_t* pbuffer;
 	int i = 0;
 
@@ -232,7 +228,7 @@ int snb_pack_info_command(uint8_t * buffer, snb_command_t *pcmd)
 
 int snb_pack_list_command(uint8_t * buffer, snb_command_t *pcmd)
 {
-	uint64_t pa_size = 0;
+	uint32_t pa_size = 0;
 	uint16_t* pbuffer;
 	int i = 0;
 	if (buffer == NULL)
@@ -269,9 +265,9 @@ int snb_unpack_command(uint8_t * buffer, snb_command_t ** pcmd)
 	base.type = *(buffer + 1);
 	base.proxy = *(buffer + 2);
 	base.rc = *(buffer + 3);
-	base.seq_num = ntohll(*((uint64_t *)(buffer + 4)));
-	base.length = ntohll(*((uint64_t *)(buffer + 12)));
-	pbuffer += 20;
+	base.seq_num = ntohl(*((uint32_t *)(buffer + 4)));
+	base.length = ntohl(*((uint32_t *)(buffer + 8)));
+	pbuffer += 12;
 	
 	switch(base.id)
 	{
@@ -299,18 +295,18 @@ int snb_unpack_command(uint8_t * buffer, snb_command_t ** pcmd)
 int snb_unpack_rw_command(const uint8_t * buffer, const snb_command_t * base,
 	snb_command_t ** pcmd)
 {
-	uint64_t offset = 0, size = 0;
+	uint32_t offset = 0, size = 0;
 	uint8_t rw_maks = 0;
-	uint16_t LUN = 0;
+	uint32_t LUN = 0;
 	uint8_t *pdata = NULL;
 	uint8_t *rw_data = NULL;
 
-	offset = ntohll(*((uint64_t*)(buffer));
-	size = ntohll(*((uint64_t*)(buffer + 8));
+	offset = ntohl(*((uint32_t*)(buffer));
+	size = ntohl(*((uint32_t*)(buffer + 4));
 
-	LUN = ntohs(*(buffer + 16));
-	rw_mask = *(buffer + 18);
-	pdata = (buffer + 19);
+	LUN = ntohs(*(buffer + 8));
+	rw_mask = *(buffer + 10);
+	pdata = (buffer + 11);
 
 	if(base->type == ask)
 	{
@@ -532,9 +528,8 @@ int snb_unpack_list_command(const uint8_t * buffer, const snb_command_t * base,
 	return 0;
 }
 
-snb_command_t* snb_command_list(snb_session_t* session)
+snb_command_t* snb_create_command_list(snb_session_t* session)
 {
-	
 	snb_command_list* cmd;
 
 	if ((cmd = SNB_MALLOC(sizeof(snb_command_list))) == 0)
@@ -546,7 +541,7 @@ snb_command_t* snb_command_list(snb_session_t* session)
 	return ((snb_command_t*)cmd);
 }
 
-snb_command_t* snb_command_list_ack(snb_session_t* session, uint16_t * LUNs, uint16_t size, snb_command_rc_t rc)
+snb_command_t* snb_create_command_list_ack(snb_session_t* session, uint16_t * LUNs, uint16_t size, snb_command_rc_t rc)
 {
 	int i = 0;
 	uint64_t plen = 0;
@@ -581,7 +576,7 @@ snb_command_t* snb_command_list_ack(snb_session_t* session, uint16_t * LUNs, uin
 	return ((snb_command_t*)cmd);
 }
 
-snb_command_t* snb_command_info(uint16_t * LUNs, uint16_t size)
+snb_command_t* snb_create_command_info(uint16_t * LUNs, uint16_t size)
 {
 	int i = 0;
 	uint64_t plen = 0;
@@ -612,7 +607,7 @@ snb_command_t* snb_command_info(uint16_t * LUNs, uint16_t size)
 	return ((snb_command_t*)cmd);
 }
 
-snb_command_t* snb_command_info_ack(uint16_t size, uint16_t* LUNs,
+snb_command_t* snb_create_command_info_ack(uint16_t size, uint16_t* LUNs,
 	uint16_t* block_num, uint16_t* block_size, snb_command_rc_t rc)
 {
 	int i = 0;
@@ -656,7 +651,7 @@ snb_command_t* snb_command_info_ack(uint16_t size, uint16_t* LUNs,
 	return ((snb_command_t*)cmd);
 }
 
-snb_command_t* snb_command_ping(ping_type_t opt)
+snb_command_t* snb_create_command_ping(ping_type_t opt)
 {
 	int i = 0;
 	uint64_t plen = 0;
@@ -674,7 +669,7 @@ snb_command_t* snb_command_ping(ping_type_t opt)
 	return ((snb_command_t*)cmd);
 }
 
-snb_command_t* snb_command_ping_ack(snb_command_rc_t rc)
+snb_command_t* snb_create_command_ping_ack(snb_command_rc_t rc)
 {
 	uint64_t plen = 0;
 	snb_command_ping_ack_t * cmd;
@@ -689,7 +684,7 @@ snb_command_t* snb_command_ping_ack(snb_command_rc_t rc)
 	return ((snb_command_t*)cmd);
 }
 
-snb_command_t* snb_command_login(unsigned char *usr, unsigned char *passwd)
+snb_command_t* snb_create_command_login(unsigned char *usr, unsigned char *passwd)
 {
 	snb_command_ping_ack * cmd;
 	uint64_t plen = 0;
@@ -726,7 +721,7 @@ snb_command_t* snb_command_login(unsigned char *usr, unsigned char *passwd)
 	return ((snb_command_t*)cmd);
 }
 
-snb_command_t* snb_command_login_ack(snb_command_rc_t rc)
+snb_command_t* snb_create_command_login_ack(snb_command_rc_t rc)
 {
 	snb_command_ping_ack * cmd;
 	uint64_t plen = 0;
@@ -742,7 +737,7 @@ snb_command_t* snb_command_login_ack(snb_command_rc_t rc)
 	return ((snb_command_t*)cmd);
 }
 
-snb_command_t*  snb_command_rw(uint16_t LUN, uint8_t * data, uint64_t offset,
+snb_command_t*  snb_create_command_rw(uint16_t LUN, uint8_t * data, uint64_t offset,
 	uint64_t size, uint8_t rw_mask)
 {
 	snb_command_rw_t * cmd;
@@ -780,11 +775,12 @@ snb_command_t*  snb_command_rw(uint16_t LUN, uint8_t * data, uint64_t offset,
 	return ((snb_command_t*)cmd);
 }
 
-snb_command_t* snb_command_rw_ack(uint16_t LUN, uint8_t * data, uint64_t offset,
-	uint64_t size, uint8_t rw_mask, snb_command_rc_t rc)
+snb_command_t* snb_create_command_rw_ack(uint16_t LUN, uint8_t * data, uint32_t offset,
+	uint32_t size, uint8_t rw_mask, snb_command_rc_t rc)
 {
+	/*
 	snb_command_rw_ack_t * cmd;
-	uint64_t plen = 0;
+	uint32_t plen = 0;
 
 	if(SNB_IS_R_CMD(rw_mask) && data == NULL)
 		return NULL;
@@ -815,5 +811,63 @@ snb_command_t* snb_command_rw_ack(uint16_t LUN, uint8_t * data, uint64_t offset,
 	plen += sizeof(cmd->offset);
 	plen += sizeof(cmd->size);
 	plen += sizeof(cmd->LUN);
-	return ((snb_command_t*)cmd);
+	return ((snb_command_t*)cmd);*/
+	return NULL;
+}
+
+snb_msg_buf_t* snb_alloc_msg_buf(uint32_t size)
+{
+	snb_msg_buf_t* buf = malloc(sizeof(*buf));
+	if(buf == NULL)
+		return NULL;
+	if ((buf->buf = malloc(size))
+	{
+		free(buf);
+		return NULL;
+	}
+	buf->pbuf = buf->buf;
+	buf->expect = 0;
+	buf->msg_state = SNB_RECV_STATE_HEAD;
+	return buf;
+}
+
+snb_msg_buf_t* snb_realloc_msg_buf(snb_msg_buf_t* buf, uint32_t size)
+{
+	snb_msg_buf_t* new_buf = NULL;
+	if(buf == NULL)
+		return NULL;
+	if(buf->size >= size)
+	{
+		buf->pbuf = buf->buf;
+		buf->expect = 0;
+		buf->state = SNB_RECV_STATE_HEAD;
+		return buf;
+	}
+	else
+	{
+		if((new_buf = malloc(sizeof(*buf))) == NULL)
+			return NULL;
+		if ((new_buf->buf = malloc(size))
+		{
+			free(new_buf);
+			return NULL;
+		}
+		new_buf->pbuf = buf->buf;
+		new_buf->expect = 0;
+		new_buf->msg_state = SNB_RECV_STATE_HEAD;
+		free(buf->buf);
+		free(buf);
+		return new_buf;
+	}
+	return new_buf;
+}
+
+void snb_free_msg_buf(snb_msg_buf_t** buf)
+{
+	if(*buf == NULL)
+		return;
+	free(*buf->buf)
+	*buf->buf = NULL;
+	free(*buf);
+	*buf = NULL;
 }

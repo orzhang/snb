@@ -14,39 +14,56 @@
 #define SNB_IS_R_CMD (x) ((x & SNB_CMD_ID_RW_MASK_R) == 0)
 #define SNB_IS_FW_CMD (x) ((x & SNB_CMD_ID_RW_MASK_W) && (x & SNB_CMD_ID_RW_MAKS_FLUSH))
 
-#define SNB_COMMAND_HEAD_SIZE (20)
+#define MAX_BUFFER (1024*1024*10)
+#define SNB_MSG_RECV_STATE_HEAD 0
+#define SNB_MSG_RECV_STATE_BODY 1
+#define SNB_MSG_RECV_STATE_END 2
+#define SNB_MSG_SEND_STATE_START 3 
+#define SNB_MSG_SEND_STATE_TX 4
+#define SNB_MSG_SEND_STATE_END 5
+
+#define SNB_COMMAND_HEAD_SIZE (12)
 
 #include <snb_common.h>
 
-typedef enum command_type {
+typedef struct snb_msg_buf
+{
+	uint8_t* buf;
+	uint8_t* pbuf;
+	uint32_t expect;
+	uint32_t size;
+	int state;
+} snb_msg_buf_t;
+
+typedef enum {
 	ask = 0,
-	answer = 1
+	answer
 } command_type_t;
 
-typedef enum ping_type {
+typedef enum {
 	server = 0,
-	device = 1
+	device
 } ping_type_t;
 
-typedef enum snb_command_rc {
+typedef enum {
 	snb_sucess = 0,
-	snb_no_device = 1,
-	snb_no_session = 2,
-	snb_login_error = 3,
-	snb_rw_error = 4,
-	snb_block_out_of_range = 5
+	snb_no_device,
+	snb_no_session,
+	snb_login_error,
+	snb_rw_error,
+	snb_block_out_of_range
 } snb_command_rc_t;
 
-typedef struct snb_command {
-	struct snb_session_t* parent;
+struct snb_command {
+	snb_session_t* parent;
 	struct snb_command* next;
 	uint8_t id;
 	uint8_t type; 
 	uint8_t proxy;
 	snb_command_rc_t rc;
-	uint64_t seq_num;
-	uint64_t length;
-} snb_command_t;
+	uint32_t seq_num;
+	uint32_t length;
+};
 
 typedef struct snb_command_no_params
 {
@@ -72,8 +89,8 @@ typedef struct snb_command_info_ack {
 	snb_command_t base;
 	uint16_t size;
 	uint16_t *LUNs;
-	uint64_t *block_num;
-	uint64_t *block_size;
+	uint32_t *block_num;
+	uint32_t *block_size;
 } snb_command_info_ack_t;
 
 typedef struct snb_command_ping {
@@ -86,14 +103,14 @@ typedef snb_command_no_params_t snb_command_ping_ack_t;
 
 typedef struct snb_command_rw {
 	snb_command_t base;
-	uint64_t offset;
-	uint64_t size;
+	uint32_t offset;
+	uint32_t size;
 	uint16_t LUN;
 	uint8_t rw_mask;
 	uint8_t * data;
 } snb_command_rw_t;
 
-typedef snb_command_rw_t snb_command_rw_ack_t;
+typedef struct snb_command_rw snb_command_rw_ack_t;
 
 typedef struct snb_command_login
 {
@@ -104,26 +121,34 @@ typedef struct snb_command_login
 
 typedef snb_command_no_params_t snb_command_login_ack_t;
 
-snb_command_t* snb_command_list();
-snb_command_t* snb_command_list_ack(uint16_t * LUNs, uint16_t size, snb_command_rc_t rc);
+snb_msg_buf_t* snb_alloc_msg_buf(uint32_t size);
+void snb_free_msg_buf(snb_msg_buf_t** buf);
+snb_msg_buf_t* snb_realloc_msg_buf(snb_msg_buf_t* buf, uint32_t size);
 
-snb_command_t* snb_command_info(uint16_t * LUNs, uint16_t size);
-snb_command_t* snb_command_info_ack(uint16_t size, uint16_t* LUNs,
+snb_command_t* snb_create_command_list();
+snb_command_t* snb_create_command_list_ack(uint16_t * LUNs, uint16_t size, snb_command_rc_t rc);
+
+snb_command_t* snb_create_command_info(uint16_t * LUNs, uint16_t size);
+snb_command_t* snb_create_command_info_ack(uint16_t size, uint16_t* LUNs,
 	uint16_t* block_num, uint16_t* block_size, snb_command_rc_t rc);
 
-snb_command_t* snb_command_ping(ping_type_t opt);
-snb_command_t* snb_command_ping_ack(snb_command_rc_t rc);
+snb_command_t* snb_create_command_ping(ping_type_t opt);
+snb_command_t* snb_create_command_ping_ack(snb_command_rc_t rc);
 
-snb_command_t* snb_command_login(unsigned char *usr, unsigned char *passwd);
-snb_command_t* snb_command_login_ack(snb_command_rc_t rc);
+snb_command_t* snb_create_command_login(unsigned char *usr, unsigned char *passwd);
+snb_command_t* snb_create_command_login_ack(snb_command_rc_t rc);
 
-snb_command_t* snb_command_rw(uint8_t * data, uint64_t offset, uint64_t size, uint8_t rw_mask);
-snb_command_t* snb_command_rw_ack(snb_command_rc_t rc);
+snb_command_t* snb_create_command_rw(uint8_t * data, uint32_t offset, uint32_t size, uint8_t rw_mask);
+snb_command_t* snb_create_command_rw_ack(uint16_t LUN, uint8_t * data, uint32_t offset,
+	uint32_t size, uint8_t rw_mask, snb_command_rc_t rc)
 
 
 int snb_session_push_command(snb_session_t* session, snb_command_t* cmd);
 snb_command_t* snb_session_pop_command(snb_session_t* session);
 
-int snb_pack_command(uint8_t ** buffer, snb_command_t * pcmd);
-int snb_unpack_command(uint8_t * buffer, snb_command_t ** pcmd);
+int snb_pack_command(uint8_t* buffer, size_t size, snb_command_t * pcmd);
+int snb_unpack_command(uint8_t* buffer, size_t size, snb_command_t ** pcmd);
+
+#define SNB_COMMAND_HEAD_ATTR_LENGTH(x) ntohll(*(uint64_t*)(x + 12)
+
 #endif
