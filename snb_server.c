@@ -5,6 +5,8 @@
 #include <netinet/in.h>
 #include <snb_session.h>
 #include <snb_protocal.h>
+#include <sys/select.h>
+#include <unistd.h>
 
 #define MAX_CONNECTION (256)
 #define BACK_LOG (5)
@@ -72,7 +74,7 @@ int server_process()
     }
 
     ret = select(g_server.max_sockfd + 1,
-    	&fdsr_r, fdsr_w, NULL, &tv);
+    	&fdsr_r, &fdsr_w, NULL, &tv);
 	if (ret < 0)
     {
     	perror("select error!");
