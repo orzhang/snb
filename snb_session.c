@@ -85,7 +85,7 @@ snb_session_t* snb_add_session(int sock)
 	session->passwd.usr = NULL;
 	session->passwd.passwd = NULL;
 	session->seq_num = 0;
-	session->sock = 0;
+	session->sock = sock;
 	session->id = snb_session_new_id();
 	if((session->msg_buf_in = snb_alloc_msg_buf(SNB_MSG_MAX_BUFFER)) == NULL)
 	{
@@ -99,12 +99,12 @@ snb_session_t* snb_add_session(int sock)
 		free(session);
 		return NULL;
 	}
-	session->msg_buf_in->state = SNB_MSG_SEND_STATE_START;
+	session->msg_buf_out->state = SNB_MSG_SEND_STATE_START;
 	if(session_list.head == NULL && session_list.rear == NULL)
 	{
 		session_list.head = session;
 		session_list.rear = session;
-		session_list.head->next = session;
+		session_list.head->next = NULL;
 	}
 	else
 	{

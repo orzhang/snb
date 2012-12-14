@@ -55,35 +55,32 @@ int server_init(uint16_t port)
 int server_process()
 {
 	struct timeval tv;
-	fd_set fdsr_r, fdsr_w;
+	fd_set fdsr_r, fdsr_w, fdsr_e;
 	snb_session_t* it;
 	int ret = 0;
 	FD_ZERO(&fdsr_r);
     FD_ZERO(&fdsr_w);
+    FD_ZERO(&fdsr_e);
 	FD_SET(g_server.sock_fd, &fdsr_r);
 	
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 
     for(it = snb_iteritor_session_begin();
-    	it != snb_iteritor_session_end();
+    	it != NULL;
     	it = snb_iteritor_session_next(it))
     {
         FD_SET(it->sock, &fdsr_r);
         FD_SET(it->sock, &fdsr_w);
+        FD_SET(it->sock, &fdsr_e);
     }
 
     ret = select(g_server.max_sockfd + 1,
-    	&fdsr_r, &fdsr_w, NULL, &tv);
+    	&fdsr_r, &fdsr_w, &fdsr_e, &tv);
 	if (ret < 0)
     {
     	perror("select error!");
     	return -1;
-    }
-    else if (ret == 0)
-    {
-    	printf("timeout\n");
-    	return 0;
     }
 
     if (FD_ISSET(g_server.sock_fd, &fdsr_r))
@@ -93,18 +90,28 @@ int server_process()
     
 
     for(it = snb_iteritor_session_begin();
-    	it != snb_iteritor_session_end();
+    	it != NULL;
     	it = snb_iteritor_session_next(it))
     {
-    	
+        if (FD_ISSET(it->sock, &fdsr_e))
+        {
+            printf("session[%d]:error\n",it->id);
+            snb_remove_session(it);
+            continue;
+        }
+        
     	if (FD_ISSET(it->sock, &fdsr_r))
     	{
-    		server_recv(it);
+            printf("session[%d]:recv\n",it->id);
+    		if(server_recv(it) < 0)
+                continue;
     	}
         snb_server_dispatch(it);
         if (FD_ISSET(it->sock, &fdsr_w))
         {
-            server_send(it);
+            printf("session[%d]:send\n",it->id);
+            if(server_send(it) < 0)
+                continue;
         }
     }
 }
@@ -137,6 +144,7 @@ int server_accept(snb_server_t * server)
 		}
 		session->addr = client_addr;
         session->seq_num = 1;
+        printf("new connection coming!\n");
 		return 0;
 	}
 	else
@@ -160,7 +168,7 @@ int server_recv(snb_session_t* session)
    		case SNB_MSG_RECV_STATE_HEAD:
    			msg_buf->pbuf = msg_buf->buf;
    			ret = recv(session->sock, msg_buf->pbuf, msg_buf->expect, 0);
-   			if(ret < 0)
+   			if(ret <= 0)
     				goto error;
    			msg_buf->pbuf += ret;
    			msg_buf->expect -= ret;
@@ -173,7 +181,7 @@ int server_recv(snb_session_t* session)
     	
     	case SNB_MSG_RECV_STATE_BODY:
 			ret = recv(session->sock, msg_buf->pbuf, expect, 0);
-			if(ret < 0)
+			if(ret <= 0)
 				goto error;
 			msg_buf->pbuf += ret;
 			msg_buf->expect -= ret;
@@ -196,6 +204,7 @@ error:
     printf("session[%d] close\n", session->id);
     close(session->sock);
     snb_remove_session(session);
+    return -1;
 }
 
 int server_send(snb_session_t* session)
@@ -221,7 +230,7 @@ int server_send(snb_session_t* session)
         
         case SNB_MSG_SEND_STATE_TX:
             ret = send(session->sock, msg_buf->pbuf, expect, 0);
-            if(ret < 0)
+            if(ret <= 0)
                 goto error;
             msg_buf->pbuf += ret;
             msg_buf->expect -= ret;
@@ -240,7 +249,7 @@ error:
     printf("session[%d] close\n", session->id);
     close(session->sock);
     snb_remove_session(session);
-	return 0;
+	return -1;
 }
 
 int main()

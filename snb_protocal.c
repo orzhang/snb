@@ -823,7 +823,7 @@ snb_msg_buf_t* snb_alloc_msg_buf(uint32_t size)
 	snb_msg_buf_t* buf = malloc(sizeof(*buf));
 	if(buf == NULL)
 		return NULL;
-	if ((buf->buf = malloc(size)))
+	if ((buf->buf = malloc(size)) == NULL)
 	{
 		free(buf);
 		return NULL;

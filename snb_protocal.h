@@ -51,7 +51,8 @@ typedef enum {
 	snb_no_session,
 	snb_login_error,
 	snb_rw_error,
-	snb_block_out_of_range
+	snb_block_out_of_range,
+	snb_no_privilage
 } snb_command_rc_t;
 
 struct snb_command {

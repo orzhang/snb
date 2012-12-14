@@ -1,13 +1,20 @@
 #include <snb_protocal.h>
 #include <snb_session.h>
 #include <snb_lun_service.h>
-
+#include <string.h>
 
 void snb_server_process_login(snb_command_t* cmd)
 {
 	snb_command_login_t* login = (snb_command_login_t*)cmd;
 	snb_command_login_ack_t* ack;
-	ack = snb_create_command_login_ack(snb_sucess);
+	if(strcmp(login->usr, "root") == 0)
+	{
+		ack = snb_create_command_login_ack(snb_sucess);
+	}
+	else
+	{
+		ack = snb_create_command_login_ack(snb_login_error);
+	}
 	snb_session_push_command(cmd->parent, ack, pipe_out);
 }
 
@@ -38,6 +45,8 @@ void snb_server_dispatch(snb_session_t* session)
 {
 	snb_command_t* cmd = NULL;
 	cmd = snb_session_pop_command(session, pipe_in);
+	if(cmd == NULL)
+		return;
 	switch(cmd->id)
 	{
 		case SNB_CMD_ID_LIST:
