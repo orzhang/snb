@@ -27,13 +27,13 @@ int server_init(uint16_t port)
     g_server.conn_amount = 0;
 	if (g_server.sock_fd < 0)
 	{
-		perror("ERROR opening socket");
+		SNB_TRACE("ERROR opening socket\n");
 		return -1;
 	}
 
 	if (setsockopt(g_server.sock_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
     {
-        perror("setsockopt error!");
+        SNB_TRACE("setsockopt error!\n");
         return -1;
     }
 
@@ -44,7 +44,7 @@ int server_init(uint16_t port)
 	if (bind(g_server.sock_fd, (struct sockaddr *) &serv_addr,
 		sizeof(serv_addr)) < 0)
 	{
-		perror("ERROR on binding");
+		SNB_TRACE("ERROR on binding\n");
 		return -1;
 	}
 	listen(g_server.sock_fd,BACK_LOG);
@@ -79,7 +79,7 @@ int server_process()
     	&fdsr_r, &fdsr_w, &fdsr_e, &tv);
 	if (ret < 0)
     {
-    	perror("select error!");
+    	SNB_TRACE("select error!\n");
     	return -1;
     }
 
@@ -95,21 +95,21 @@ int server_process()
     {
         if (FD_ISSET(it->sock, &fdsr_e))
         {
-            printf("session[%d]:error\n",it->id);
+            SNB_TRACE("session[%d]:error\n",it->id);
             snb_remove_session(it);
             continue;
         }
         
     	if (FD_ISSET(it->sock, &fdsr_r))
     	{
-            printf("session[%d]:recv\n",it->id);
+//            SNB_TRACE("session[%d]:recv\n",it->id);
     		if(server_recv(it) < 0)
                 continue;
     	}
         snb_server_dispatch(it);
         if (FD_ISSET(it->sock, &fdsr_w))
         {
-            printf("session[%d]:send\n",it->id);
+//            SNB_TRACE("session[%d]:send\n",it->id);
             if(server_send(it) < 0)
                 continue;
         }
@@ -128,7 +128,7 @@ int server_accept(snb_server_t * server)
     server->conn_amount++;
 	if (new_fd <= 0)
 	{
-		perror("accept socket error!");
+		SNB_TRACE("accept socket error!");
 		return -1;
 	}
 	if (server->conn_amount < MAX_CONNECTION)
@@ -138,18 +138,18 @@ int server_accept(snb_server_t * server)
 		session = snb_add_session(new_fd);
 		if(session == NULL)
 		{
-			printf("can not malloc a new session, exit\n");
+			SNB_TRACE("can not malloc a new session, exit\n");
 			close(new_fd);
 			return -1;
 		}
 		session->addr = client_addr;
         session->seq_num = 1;
-        printf("new connection coming!\n");
+        SNB_TRACE("new connection coming!\n");
 		return 0;
 	}
 	else
 	{
-		printf("max connections arrive, exit\n");
+		SNB_TRACE("max connections arrive, exit\n");
 		close(new_fd);
 		return 0;
 	}
@@ -160,37 +160,41 @@ int server_recv(snb_session_t* session)
 {
     int ret = 0;
     int rc;
-    int expect = SNB_COMMAND_HEAD_SIZE;
     snb_command_t* command = NULL;
     snb_msg_buf_t * msg_buf = session->msg_buf_in;
     switch (msg_buf->state)
    	{
    		case SNB_MSG_RECV_STATE_HEAD:
    			msg_buf->pbuf = msg_buf->buf;
+            msg_buf->expect = SNB_COMMAND_HEAD_SIZE;
    			ret = recv(session->sock, msg_buf->pbuf, msg_buf->expect, 0);
+            SNB_TRACE("expect:%d,recv:%d\n", msg_buf->expect, ret);
    			if(ret <= 0)
     				goto error;
    			msg_buf->pbuf += ret;
    			msg_buf->expect -= ret;
+
    			if(msg_buf->expect == 0)
    			{
    				msg_buf->expect = SNB_COMMAND_HEAD_ATTR_LENGTH(msg_buf->buf);
+                SNB_TRACE("body has %d bytes\n", msg_buf->expect);
    				msg_buf->state = SNB_MSG_RECV_STATE_BODY;
    			}
    		break;
     	
     	case SNB_MSG_RECV_STATE_BODY:
-			ret = recv(session->sock, msg_buf->pbuf, expect, 0);
+			ret = recv(session->sock, msg_buf->pbuf, msg_buf->expect, 0);
+            SNB_TRACE("expect:%d,recv:%d\n", msg_buf->expect, ret);
 			if(ret <= 0)
 				goto error;
 			msg_buf->pbuf += ret;
 			msg_buf->expect -= ret;
-			if(expect == 0)
+			if(msg_buf->expect == 0)
 			{
 				msg_buf->state = SNB_MSG_RECV_STATE_HEAD;
-				if (snb_unpack_command(msg_buf->pbuf, msg_buf->size, &command) != 0)
+				if (snb_unpack_command(msg_buf->buf, msg_buf->size, &command) != 0)
 					goto error;
-				snb_session_push_command(session, command,pipe_in);
+				snb_session_push_command(session, command, pipe_in);
 			}
 			return 0;
 		break;
@@ -201,7 +205,7 @@ int server_recv(snb_session_t* session)
     return 0;
 
 error:
-    printf("session[%d] close\n", session->id);
+    SNB_TRACE("session[%d] close\n", session->id);
     close(session->sock);
     snb_remove_session(session);
     return -1;
@@ -211,7 +215,6 @@ int server_send(snb_session_t* session)
 {
     int ret = 0;
     int rc;
-    int expect = SNB_COMMAND_HEAD_SIZE;
     snb_command_t* command = NULL;
     snb_msg_buf_t* msg_buf = session->msg_buf_out;
     switch (msg_buf->state)
@@ -222,19 +225,21 @@ int server_send(snb_session_t* session)
                 return 0;
             if((msg_buf = snb_realloc_msg_buf(msg_buf, command->length)) == NULL)
                 goto error;
+            session->msg_buf_out = msg_buf;
             msg_buf->state = SNB_MSG_SEND_STATE_TX;
             msg_buf->pbuf = msg_buf->buf;
-            msg_buf->expect = msg_buf->size;
+            msg_buf->expect = command->length;
             snb_pack_command(msg_buf->buf, msg_buf->size, command);
         break;
         
         case SNB_MSG_SEND_STATE_TX:
-            ret = send(session->sock, msg_buf->pbuf, expect, 0);
+            ret = send(session->sock, msg_buf->pbuf, msg_buf->expect, 0);
+            SNB_TRACE("expect:%d,send:%d\n", msg_buf->expect, ret);
             if(ret <= 0)
                 goto error;
             msg_buf->pbuf += ret;
             msg_buf->expect -= ret;
-            if(expect == 0)
+            if(msg_buf->expect == 0)
             {
                 msg_buf->state = SNB_MSG_SEND_STATE_START;
             }
@@ -246,7 +251,7 @@ int server_send(snb_session_t* session)
     }
     return 0;
 error:
-    printf("session[%d] close\n", session->id);
+    SNB_TRACE("session[%d] close\n", session->id);
     close(session->sock);
     snb_remove_session(session);
 	return -1;
@@ -255,6 +260,7 @@ error:
 int main()
 {
 	server_init(8086);
+    SNB_TRACE("server init ok\n");
     while(1)
     {
         server_process();

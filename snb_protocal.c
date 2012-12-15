@@ -35,7 +35,7 @@ int snb_pack_command(uint8_t * buffer, size_t size, snb_command_t * pcmd)
 		return -1;
 	if(buffer == NULL)
 		return -1;
-	switch(pcmd->type)
+	switch(pcmd->id)
 	{
 		case SNB_CMD_ID_LIST:
 			if(snb_pack_head(buffer, pcmd) ||
@@ -291,6 +291,7 @@ int snb_unpack_command(uint8_t * buffer, size_t size, snb_command_t ** pcmd)
 			rc = -1;
 		break;
 	}
+	*pcmd = cmd;
 	return rc;
 }
 
@@ -387,7 +388,7 @@ int snb_unpack_login_command(const uint8_t * buffer, const snb_command_t * base,
 		pbuffer += len1;
 
 		memcpy(cmd->passwd, pbuffer, len2);
-		cmd->usr[len2] = '\0';
+		cmd->passwd[len2] = '\0';
 
 		*pcmd = cmd;
 		return 0;
@@ -831,6 +832,7 @@ snb_msg_buf_t* snb_alloc_msg_buf(uint32_t size)
 	buf->pbuf = buf->buf;
 	buf->expect = 0;
 	buf->state = SNB_MSG_RECV_STATE_HEAD;
+	buf->size = size;
 	return buf;
 }
 
@@ -858,6 +860,7 @@ snb_msg_buf_t* snb_realloc_msg_buf(snb_msg_buf_t* buf, uint32_t size)
 		new_buf->pbuf = buf->buf;
 		new_buf->expect = 0;
 		new_buf->state = SNB_MSG_RECV_STATE_HEAD;
+		new_buf->size = size;
 		free(buf->buf);
 		free(buf);
 		return new_buf;

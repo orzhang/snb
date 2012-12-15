@@ -1,6 +1,17 @@
-OBJS=snb_protocal.o snb_lun_service.o snb_server.o snb_server_dispatch.o snb_session.o
-CFLAGS = -I ./ -g
-all:$(OBJS)
-	gcc $(OBJS) $(CFLAGS) -o server 
+OBJS=snb_protocal.o snb_lun_service.o snb_server_dispatch.o snb_session.o
+CFLAGS = -DDEBUG -I ./ -g
+
+TEST_OBJS+=$(OBJS)
+TEST_OBJS+=client_test.o
+
+SERVER_OBJS+=$(OBJS)
+SERVER_OBJS+=snb_server.o
+
+all:server test
+
+test:$(TEST_OBJS) 
+	gcc $(TEST_OBJS) $(CFLAGS) -o client_test
+server:$(SERVER_OBJS) 
+	gcc $(SERVER_OBJS) $(CFLAGS) -o snb_server 
 clean:
-	rm *.o
+	rm *.o client_test snb_server

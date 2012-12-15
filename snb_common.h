@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
+
 #ifdef KERNEL
 #define SNB_MALLOC malloc
 #define SNB_FREE free
@@ -18,6 +19,16 @@
 #define SNB_LOCK_MUTEX(x)
 #define SNB_UNLOCK_MUTEX(x)
 #endif
+
+#ifdef DEBUG
+#define SNB_TRACE(argv...) do{\
+		printf("%s:%d\t", __FILE__, __LINE__);\
+		printf(argv);\
+	}while(0)
+#else 
+#define SNB_TRACE(argv...) printf(argv)
+#endif
+
 struct snb_command;
 struct snb_session;
 typedef struct snb_command snb_command_t;

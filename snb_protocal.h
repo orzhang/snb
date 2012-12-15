@@ -146,6 +146,6 @@ snb_command_t* snb_create_command_rw_ack(uint16_t LUN, uint8_t * data, uint32_t 
 int snb_pack_command(uint8_t* buffer, size_t size, snb_command_t * pcmd);
 int snb_unpack_command(uint8_t* buffer, size_t size, snb_command_t ** pcmd);
 
-#define SNB_COMMAND_HEAD_ATTR_LENGTH(x) ntohl(*(uint32_t*)(x + 12))
+#define SNB_COMMAND_HEAD_ATTR_LENGTH(x) (ntohl(*(uint32_t*)(x + 8)) - SNB_COMMAND_HEAD_SIZE)
 
 #endif

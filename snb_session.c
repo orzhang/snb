@@ -16,8 +16,7 @@ int snb_session_pipe_push_command(snb_command_pipe_t* pipe, snb_command_t* cmd)
 	if (cmd == NULL)
 		return -1;
 	SNB_LOCK_MUTEX(pipe);
-	if(pipe->cmd_list_head == NULL && 
-		pipe->cmd_list_tail == NULL)
+	if(pipe->cmd_list_head == NULL)
 	{
 		pipe->cmd_list_head = cmd;
 		pipe->cmd_list_tail = cmd;
@@ -35,8 +34,7 @@ snb_command_t* snb_session_pipe_pop_command(snb_command_pipe_t* pipe)
 	snb_command_t* cmd = NULL;
 
 	SNB_LOCK_MUTEX(pipe);
-	if(pipe->cmd_list_head == NULL && 
-		pipe->cmd_list_tail == NULL)
+	if(pipe->cmd_list_head == NULL)
 	{
 		cmd = NULL;
 	}
@@ -81,6 +79,7 @@ snb_session_t* snb_add_session(int sock)
 	session = SNB_MALLOC(sizeof(*session));
 		if(session == NULL)
 			return NULL;
+	bzero(session, sizeof(*session));
 	session->next = NULL;
 	session->passwd.usr = NULL;
 	session->passwd.passwd = NULL;
