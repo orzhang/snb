@@ -2,6 +2,6 @@
 *~
 *.swp
 *.o
-server
+snb_server
 client_test
 

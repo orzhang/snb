@@ -31,7 +31,7 @@ static int snb_unpack_list_command(const uint8_t* buffer, const snb_command_t * 
 
 int snb_pack_command(uint8_t * buffer, size_t size, snb_command_t * pcmd)
 {
-	if(size < pcmd->length)
+	if(size < (pcmd->length + SNB_COMMAND_HEAD_SIZE))
 		return -1;
 	if(buffer == NULL)
 		return -1;
@@ -39,7 +39,7 @@ int snb_pack_command(uint8_t * buffer, size_t size, snb_command_t * pcmd)
 	{
 		case SNB_CMD_ID_LIST:
 			if(snb_pack_head(buffer, pcmd) ||
-				snb_pack_list_command(buffer + SNB_COMMAND_HEAD_SIZE, (snb_command_list_t*)pcmd))
+				snb_pack_list_command(buffer + SNB_COMMAND_HEAD_SIZE, pcmd))
 			{
 				return -1;
 			}
@@ -47,7 +47,7 @@ int snb_pack_command(uint8_t * buffer, size_t size, snb_command_t * pcmd)
 			break;
 		case SNB_CMD_ID_INFO:
 			if(snb_pack_head(buffer, pcmd) ||
-				snb_pack_info_command(buffer + SNB_COMMAND_HEAD_SIZE, (snb_command_info_t*)pcmd))
+				snb_pack_info_command(buffer + SNB_COMMAND_HEAD_SIZE, pcmd))
 			{
 				return -1;
 			}
@@ -55,7 +55,7 @@ int snb_pack_command(uint8_t * buffer, size_t size, snb_command_t * pcmd)
 			break;
 		case SNB_CMD_ID_PING:
 			if(snb_pack_head(buffer, pcmd) ||
-				snb_pack_ping_command(buffer + SNB_COMMAND_HEAD_SIZE, (snb_command_ping_t*)pcmd))
+				snb_pack_ping_command(buffer + SNB_COMMAND_HEAD_SIZE, pcmd))
 			{
 				return -1;
 			}
@@ -63,7 +63,7 @@ int snb_pack_command(uint8_t * buffer, size_t size, snb_command_t * pcmd)
 			break;
 		case SNB_CMD_ID_LOGIN:
 			if(snb_pack_head(buffer, pcmd) ||
-				snb_pack_login_command(buffer + SNB_COMMAND_HEAD_SIZE, (snb_command_login_t*)pcmd))
+				snb_pack_login_command(buffer + SNB_COMMAND_HEAD_SIZE, pcmd))
 			{
 				return -1;
 			}
@@ -71,7 +71,7 @@ int snb_pack_command(uint8_t * buffer, size_t size, snb_command_t * pcmd)
 			break;
 		case SNB_CMD_ID_RW:
 			if(snb_pack_head(buffer, pcmd) ||
-				snb_pack_rw_command(buffer + SNB_COMMAND_HEAD_SIZE, (snb_command_rw_t*)pcmd))
+				snb_pack_rw_command(buffer + SNB_COMMAND_HEAD_SIZE, pcmd))
 			{
 				return -1;
 			}
@@ -269,7 +269,7 @@ int snb_unpack_command(uint8_t * buffer, size_t size, snb_command_t ** pcmd)
 	base.rc = *(buffer + 3);
 	base.seq_num = ntohl(*((uint32_t *)(buffer + 4)));
 	base.length = ntohl(*((uint32_t *)(buffer + 8)));
-	pbuffer += 12;
+	pbuffer += SNB_COMMAND_HEAD_SIZE;
 	
 	switch(base.id)
 	{
@@ -291,7 +291,7 @@ int snb_unpack_command(uint8_t * buffer, size_t size, snb_command_t ** pcmd)
 			rc = -1;
 		break;
 	}
-	*pcmd = cmd;
+	*pcmd = (snb_command_t*)cmd;
 	return rc;
 }
 
@@ -301,7 +301,7 @@ int snb_unpack_rw_command(const uint8_t * buffer, const snb_command_t * base,
 	uint32_t offset = 0, size = 0;
 	uint8_t rw_mask = 0;
 	uint32_t LUN = 0;
-	uint8_t *pdata = NULL;
+	const uint8_t *pdata = NULL;
 	uint8_t *rw_data = NULL;
 
 	offset = ntohl(*((uint32_t*)(buffer)));
@@ -318,7 +318,7 @@ int snb_unpack_rw_command(const uint8_t * buffer, const snb_command_t * base,
 			return -1;
 		if(SNB_IS_W_CMD(rw_mask))
 		{
-			if ((rw_data = SNB_MALLOC(size) == NULL))
+			if ((rw_data = SNB_MALLOC(size)) == NULL)
 			{
 				SNB_FREE(cmd);
 				return -1;
@@ -329,7 +329,7 @@ int snb_unpack_rw_command(const uint8_t * buffer, const snb_command_t * base,
 		cmd->size = size;
 		cmd->rw_mask = rw_mask;
 		cmd->data = rw_data;
-		*pcmd = cmd;
+		*pcmd = (snb_command_t*)cmd;
 		return 0;
 	}
 	else
@@ -340,7 +340,7 @@ int snb_unpack_rw_command(const uint8_t * buffer, const snb_command_t * base,
 
 		if (SNB_IS_R_CMD(rw_mask))
 		{
-			if ((rw_data = SNB_MALLOC(size) == NULL))
+			if ((rw_data = SNB_MALLOC(size)) == NULL)
 			{
 				SNB_FREE(cmd);
 				return -1;
@@ -351,7 +351,7 @@ int snb_unpack_rw_command(const uint8_t * buffer, const snb_command_t * base,
 		cmd->size = size;
 		cmd->rw_mask = rw_mask;
 		cmd->data = rw_data;
-		*pcmd = cmd;
+		*pcmd = (snb_command_t*)cmd;
 		return 0;
 	}
 	return 0;
@@ -362,7 +362,7 @@ int snb_unpack_login_command(const uint8_t * buffer, const snb_command_t * base,
 {
 	if(base->type == ask)
 	{
-		uint8_t * pbuffer = buffer;
+		const uint8_t * pbuffer = buffer;
 		uint8_t len1,len2;
 		snb_command_login_t * cmd = SNB_MALLOC(sizeof(snb_command_login_t));
 		if(cmd == NULL)
@@ -390,7 +390,7 @@ int snb_unpack_login_command(const uint8_t * buffer, const snb_command_t * base,
 		memcpy(cmd->passwd, pbuffer, len2);
 		cmd->passwd[len2] = '\0';
 
-		*pcmd = cmd;
+		*pcmd = (snb_command_t*)cmd;
 		return 0;
 	}
 	else
@@ -399,7 +399,7 @@ int snb_unpack_login_command(const uint8_t * buffer, const snb_command_t * base,
 		if(cmd == NULL)
 			return -1;
 		cmd->base = *base;
-		*pcmd = cmd;
+		*pcmd = (snb_command_t*)cmd;
 		return 0;	
 	}
 	return 0;
@@ -415,7 +415,7 @@ int snb_unpack_ping_command(const uint8_t * buffer, const snb_command_t * base,
 			return -1;
 		cmd->base = *base;
 		cmd->type = buffer[0];
-		*pcmd = cmd;
+		*pcmd = (snb_command_t*)cmd;
 		return 0;
 	}
 	else
@@ -424,7 +424,7 @@ int snb_unpack_ping_command(const uint8_t * buffer, const snb_command_t * base,
 		if(cmd == NULL)
 			return -1;
 		cmd->base = *base;
-		*pcmd = cmd;
+		*pcmd = (snb_command_t*)cmd;
 		return 0;	
 	}
 	return 0;
@@ -435,9 +435,9 @@ int snb_unpack_info_command(const uint8_t * buffer, const snb_command_t * base,
 {
 	int i = 0;
 	uint16_t* LUNs = NULL;
-	uint16_t* block_num = NULL;
-	uint16_t* block_size = NULL;
-	uint16_t* pbuffer = buffer;
+	uint32_t* block_num = NULL;
+	uint32_t* block_size = NULL;
+	const uint16_t* pbuffer = (const uint16_t*)buffer;
 	if(base->type == ask)
 	{
 		snb_command_info_t * cmd = SNB_MALLOC(sizeof(snb_command_info_t));
@@ -458,7 +458,7 @@ int snb_unpack_info_command(const uint8_t * buffer, const snb_command_t * base,
 			LUNs[i] = ntohs(*pbuffer++);
 		}
 		cmd->LUNs = LUNs;
-		*pcmd = cmd;
+		*pcmd = (snb_command_t*)cmd;
 		return 0;
 	}
 	else
@@ -471,8 +471,8 @@ int snb_unpack_info_command(const uint8_t * buffer, const snb_command_t * base,
 		cmd->base = *base;
 		cmd->size = ntohs(*pbuffer++);
 		if (((LUNs = SNB_MALLOC(sizeof(uint16_t) * cmd->size)) == NULL) ||
-			((block_num = SNB_MALLOC(sizeof(uint16_t) * cmd->size)) == NULL) ||
-			((block_size = SNB_MALLOC(sizeof(uint16_t) * cmd->size)) == NULL))
+			((block_num = SNB_MALLOC(sizeof(uint32_t) * cmd->size)) == NULL) ||
+			((block_size = SNB_MALLOC(sizeof(uint32_t) * cmd->size)) == NULL))
 		{
 			SNB_FREE(cmd);
 			SNB_FREE(LUNs);
@@ -491,7 +491,7 @@ int snb_unpack_info_command(const uint8_t * buffer, const snb_command_t * base,
 		cmd->LUNs = LUNs;
 		cmd->block_num = block_num;
 		cmd->block_size = block_size;
-		*pcmd = cmd;
+		*pcmd = (snb_command_t*)cmd;
 		return 0;
 	}
 	return 0;
@@ -500,7 +500,7 @@ int snb_unpack_info_command(const uint8_t * buffer, const snb_command_t * base,
 int snb_unpack_list_command(const uint8_t * buffer, const snb_command_t * base,
 	snb_command_t ** pcmd)
 {
-	uint16_t* pbuffer = buffer;
+	uint16_t* pbuffer = (uint16_t*)buffer;
 	int i = 0;
 	if(base->type == ask)
 	{
@@ -510,7 +510,7 @@ int snb_unpack_list_command(const uint8_t * buffer, const snb_command_t * base,
 			return -1;
 		}
 		cmd->base = *base;
-		*pcmd = cmd;
+		*pcmd = (snb_command_t*)cmd;
 		return 0;
 	}
 	else
@@ -520,7 +520,7 @@ int snb_unpack_list_command(const uint8_t * buffer, const snb_command_t * base,
 		{
 			return -1;
 		}
-		*pcmd = cmd;
+		*pcmd = (snb_command_t*)cmd;
 		cmd->base = *base;
 		cmd->size = ntohs(*pbuffer++);
 		if ((cmd->LUNs = SNB_MALLOC(sizeof(uint16_t) * cmd->size)) == NULL)
@@ -550,7 +550,7 @@ snb_command_t* snb_create_command_list()
 snb_command_t* snb_create_command_list_ack(uint16_t * LUNs, uint16_t size, snb_command_rc_t rc)
 {
 	int i = 0;
-	uint64_t plen = 0;
+	uint32_t plen = 0;
 	snb_command_list_ack_t * cmd;
 
 	if (LUNs == NULL || size == 0)
@@ -577,7 +577,7 @@ snb_command_t* snb_create_command_list_ack(uint16_t * LUNs, uint16_t size, snb_c
 
 	plen += sizeof(cmd->size);
 	plen += sizeof(LUNs[0]) * size;
-	cmd->base.length = plen + SNB_COMMAND_HEAD_SIZE;
+	cmd->base.length = plen;
 
 	return ((snb_command_t*)cmd);
 }
@@ -585,7 +585,7 @@ snb_command_t* snb_create_command_list_ack(uint16_t * LUNs, uint16_t size, snb_c
 snb_command_t* snb_create_command_info(uint16_t * LUNs, uint16_t size)
 {
 	int i = 0;
-	uint64_t plen = 0;
+	uint32_t plen = 0;
 	snb_command_info_t * cmd;
 
 	if (LUNs == NULL || size == 0)
@@ -609,7 +609,7 @@ snb_command_t* snb_create_command_info(uint16_t * LUNs, uint16_t size)
 
 	plen += sizeof(cmd->size);
 	plen += sizeof(LUNs[0]) * size;
-	cmd->base.length = plen + SNB_COMMAND_HEAD_SIZE;
+	cmd->base.length = plen;
 	return ((snb_command_t*)cmd);
 }
 
@@ -617,7 +617,7 @@ snb_command_t* snb_create_command_info_ack(uint16_t size, uint16_t* LUNs,
 	uint16_t* block_num, uint16_t* block_size, snb_command_rc_t rc)
 {
 	int i = 0;
-	uint64_t plen = 0;
+	uint32_t plen = 0;
 	snb_command_info_ack_t * cmd;
 
 	if (LUNs == NULL || size == 0)
@@ -653,14 +653,14 @@ snb_command_t* snb_create_command_info_ack(uint16_t size, uint16_t* LUNs,
 
 	plen += sizeof(cmd->size);
 	plen += sizeof(LUNs[0]) * size * 3;
-	cmd->base.length = plen + SNB_COMMAND_HEAD_SIZE;
+	cmd->base.length = plen;
 	return ((snb_command_t*)cmd);
 }
 
 snb_command_t* snb_create_command_ping(ping_type_t opt)
 {
 	int i = 0;
-	uint64_t plen = 0;
+	uint32_t plen = 0;
 	snb_command_ping_t * cmd;
 
 	if ((cmd = SNB_MALLOC(sizeof(snb_command_ping_t))) == 0)
@@ -671,13 +671,13 @@ snb_command_t* snb_create_command_ping(ping_type_t opt)
 	cmd->base.next = 0;
 	cmd->type = opt;
 	plen += sizeof(opt);
-	cmd->base.length = plen + SNB_COMMAND_HEAD_SIZE;
+	cmd->base.length = plen;
 	return ((snb_command_t*)cmd);
 }
 
 snb_command_t* snb_create_command_ping_ack(snb_command_rc_t rc)
 {
-	uint64_t plen = 0;
+	uint32_t plen = 0;
 	snb_command_ping_ack_t * cmd;
 
 	if ((cmd = SNB_MALLOC(sizeof(snb_command_ping_ack_t))) == 0)
@@ -686,14 +686,14 @@ snb_command_t* snb_create_command_ping_ack(snb_command_rc_t rc)
 	cmd->base.type = answer;
 	cmd->base.rc = rc;
 	cmd->base.next = 0;
-	cmd->base.length = plen + SNB_COMMAND_HEAD_SIZE;
+	cmd->base.length = plen;
 	return ((snb_command_t*)cmd);
 }
 
-snb_command_t* snb_create_command_login(unsigned char *usr, unsigned char *passwd)
+snb_command_t* snb_create_command_login(const char *usr, const char *passwd)
 {
 	snb_command_login_t * cmd;
-	uint64_t plen = 0;
+	uint32_t plen = 0;
 	uint8_t len1, len2;
 	if ((cmd = SNB_MALLOC(sizeof(snb_command_login_t))) == 0)
 		return NULL;
@@ -723,14 +723,14 @@ snb_command_t* snb_create_command_login(unsigned char *usr, unsigned char *passw
 	strcpy(cmd->passwd, passwd);
 	plen += len1 + len2;
 	plen += 2;//len1,len2
-	cmd->base.length = plen + SNB_COMMAND_HEAD_SIZE;
+	cmd->base.length = plen;
 	return ((snb_command_t*)cmd);
 }
 
 snb_command_t* snb_create_command_login_ack(snb_command_rc_t rc)
 {
 	snb_command_ping_ack_t * cmd;
-	uint64_t plen = 0;
+	uint32_t plen = 0;
 
 	if ((cmd = SNB_MALLOC(sizeof(snb_command_ping_ack_t))) == 0)
 		return NULL;
@@ -739,7 +739,7 @@ snb_command_t* snb_create_command_login_ack(snb_command_rc_t rc)
 	cmd->base.next = 0;
 	cmd->base.rc = rc;
 
-	cmd->base.length = plen + SNB_COMMAND_HEAD_SIZE;
+	cmd->base.length = plen;
 	return ((snb_command_t*)cmd);
 }
 
@@ -747,10 +747,10 @@ snb_command_t*  snb_create_command_rw(uint16_t LUN, uint8_t * data, uint32_t off
 	uint32_t size, uint8_t rw_mask)
 {
 	snb_command_rw_t * cmd;
-	uint64_t plen = 0;
+	uint32_t plen = 0;
 
 	if(SNB_IS_W_CMD(rw_mask) && data == NULL)
-		return -1;
+		return NULL;
 	if ((cmd = SNB_MALLOC(sizeof(snb_command_rw_t))) == 0)
 		return NULL;
 	cmd->base.id = SNB_CMD_ID_RW;
@@ -777,7 +777,7 @@ snb_command_t*  snb_create_command_rw(uint16_t LUN, uint8_t * data, uint32_t off
 	plen += sizeof(cmd->size);
 	plen += sizeof(cmd->LUN);
 	
-	cmd->base.length = plen + SNB_COMMAND_HEAD_SIZE;
+	cmd->base.length = plen;
 	return ((snb_command_t*)cmd);
 }
 

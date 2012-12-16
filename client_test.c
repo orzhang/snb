@@ -23,15 +23,43 @@ int snb_connect(uint16_t port)
 	inet_aton(DEFAULT_SERVER, &addr.sin_addr);
 	rc = connect(sock_fd, (struct sockaddr*)&addr, sizeof(addr));
 }
+void test_ping()
+{
+	int expect;
+	int ret = 0;
+	uint8_t buf[1024];
+	uint8_t *pbuf = buf;
+	snb_command_t* cmd = snb_create_command_ping(server);
+	snb_command_t* ack_cmd;
+	expect = cmd->length + SNB_COMMAND_HEAD_SIZE;
+	snb_pack_command(buf, sizeof(buf), cmd);
+	do {
+		ret = send(sock_fd, pbuf, expect, 0);
+		SNB_TRACE("send %d bytes\n", ret);
+		expect -= ret;
+		pbuf += ret;
+	} while (expect != 0);
+	SNB_TRACE("ping sent\n");
 
-int test_login()
+	ret = recv(sock_fd, buf, SNB_COMMAND_HEAD_SIZE, 0);
+	snb_unpack_command(buf, sizeof(buf), &ack_cmd);
+	if(ack_cmd != NULL)
+	{
+		SNB_TRACE("id = %d\n", ack_cmd->id);
+		SNB_TRACE("type = %d\n", ack_cmd->type);
+		SNB_TRACE("proxy = %d\n", ack_cmd->proxy);
+		SNB_TRACE("rc = %d\n", ack_cmd->rc);
+	}	
+}
+void test_login()
 {
 	int expect;
 	int ret = 0;
 	uint8_t buf[1024];
 	uint8_t *pbuf = buf;
 	snb_command_t* cmd = snb_create_command_login("root", "root");
-	expect = cmd->length;
+	snb_command_t* ack_cmd;
+	expect = cmd->length + SNB_COMMAND_HEAD_SIZE;
 	snb_pack_command(buf, sizeof(buf), cmd);
 	do {
 		ret = send(sock_fd, pbuf, expect, 0);
@@ -40,12 +68,24 @@ int test_login()
 		pbuf += ret;
 	} while (expect != 0);
 	SNB_TRACE("login sent\n");
+
+	ret = recv(sock_fd, buf, SNB_COMMAND_HEAD_SIZE, 0);
+	snb_unpack_command(buf, sizeof(buf), &ack_cmd);
+	if(ack_cmd != NULL)
+	{
+		SNB_TRACE("id = %d\n", ack_cmd->id);
+		SNB_TRACE("type = %d\n", ack_cmd->type);
+		SNB_TRACE("proxy = %d\n", ack_cmd->proxy);
+		SNB_TRACE("rc = %d\n", ack_cmd->rc);
+	}
+
 }
 
 int main()
 {
 	snb_connect(8086);
 	test_login();
+	test_ping();
 	getchar();
 	close(sock_fd);
 	return 0;

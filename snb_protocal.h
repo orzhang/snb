@@ -66,6 +66,14 @@ struct snb_command {
 	uint32_t length;
 };
 
+#define SNB_COMMAND_HEAD_ATTR_ID(x) (*((uint8_t*)(x)))
+#define SNB_COMMAND_HEAD_ATTR_TYPE(x) (*((uint8_t*)(x + 1)))
+#define SNB_COMMAND_HEAD_ATTR_PROXY(x) (*((uint8_t*)(x + 2)))
+#define SNB_COMMAND_HEAD_ATTR_RC(x) (*((uint8_t*)(x + 3)))
+#define SNB_COMMAND_HEAD_ATTR_SEQNUM(x) (ntohl(*(uint32_t*)(x + 4)))
+#define SNB_COMMAND_HEAD_ATTR_LENGTH(x) (ntohl(*(uint32_t*)(x + 8)))
+
+
 typedef struct snb_command_no_params
 {
 	snb_command_t base;
@@ -136,7 +144,7 @@ snb_command_t* snb_create_command_info_ack(uint16_t size, uint16_t* LUNs,
 snb_command_t* snb_create_command_ping(ping_type_t opt);
 snb_command_t* snb_create_command_ping_ack(snb_command_rc_t rc);
 
-snb_command_t* snb_create_command_login(unsigned char *usr, unsigned char *passwd);
+snb_command_t* snb_create_command_login(const char *usr, const char *passwd);
 snb_command_t* snb_create_command_login_ack(snb_command_rc_t rc);
 
 snb_command_t* snb_create_command_rw(uint16_t LUN, uint8_t * data, uint32_t offset, uint32_t size, uint8_t rw_mask);
@@ -145,7 +153,5 @@ snb_command_t* snb_create_command_rw_ack(uint16_t LUN, uint8_t * data, uint32_t 
 
 int snb_pack_command(uint8_t* buffer, size_t size, snb_command_t * pcmd);
 int snb_unpack_command(uint8_t* buffer, size_t size, snb_command_t ** pcmd);
-
-#define SNB_COMMAND_HEAD_ATTR_LENGTH(x) (ntohl(*(uint32_t*)(x + 8)) - SNB_COMMAND_HEAD_SIZE)
 
 #endif

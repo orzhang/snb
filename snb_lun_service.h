@@ -5,18 +5,26 @@
 #include <snb_common.h>
 #include <snb_protocal.h>
 #include <snb_session.h>
+
+typedef struct snb_block_config {
+	struct snb_block_config* next;
+	char* name;
+	char* path;
+	uint32_t nblock;
+	uint32_t size;
+} snb_block_config_t;
+
 typedef struct snb_LUN
 {
 	uint16_t id;
 	FILE *file;
-	uint32_t nblock;
-	uint32_t size;
+	snb_block_config_t* config;
 	snb_command_pipe_t rw_pipe;
 	int thread_run;
 } snb_LUN_t;
 
 
-void snb_LUN_service_init();
+int snb_LUN_service_init(const char* file);
 
 void snb_LUN_service_push_command(uint16_t LUN, snb_command_t* cmd);
 

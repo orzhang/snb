@@ -168,7 +168,7 @@ int server_recv(snb_session_t* session)
    			msg_buf->pbuf = msg_buf->buf;
             msg_buf->expect = SNB_COMMAND_HEAD_SIZE;
    			ret = recv(session->sock, msg_buf->pbuf, msg_buf->expect, 0);
-            SNB_TRACE("expect:%d,recv:%d\n", msg_buf->expect, ret);
+            SNB_TRACE("expect:%d, recv:%d\n", msg_buf->expect, ret);
    			if(ret <= 0)
     				goto error;
    			msg_buf->pbuf += ret;
@@ -178,7 +178,18 @@ int server_recv(snb_session_t* session)
    			{
    				msg_buf->expect = SNB_COMMAND_HEAD_ATTR_LENGTH(msg_buf->buf);
                 SNB_TRACE("body has %d bytes\n", msg_buf->expect);
-   				msg_buf->state = SNB_MSG_RECV_STATE_BODY;
+                if(msg_buf->expect == 0)
+                {
+                    msg_buf->state = SNB_MSG_RECV_STATE_HEAD;
+                    if (snb_unpack_command(msg_buf->buf, msg_buf->size, &command) != 0)
+                        goto error;
+                    snb_session_push_command(session, command, pipe_in);
+                }
+                else
+                {
+                    msg_buf->state = SNB_MSG_RECV_STATE_BODY;
+                }
+   				
    			}
    		break;
     	
@@ -228,7 +239,7 @@ int server_send(snb_session_t* session)
             session->msg_buf_out = msg_buf;
             msg_buf->state = SNB_MSG_SEND_STATE_TX;
             msg_buf->pbuf = msg_buf->buf;
-            msg_buf->expect = command->length;
+            msg_buf->expect = command->length + SNB_COMMAND_HEAD_SIZE;
             snb_pack_command(msg_buf->buf, msg_buf->size, command);
         break;
         

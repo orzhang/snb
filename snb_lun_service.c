@@ -1,14 +1,79 @@
 #include <snb_lun_service.h>
-
+#include <pthread.h>
 static snb_LUN_t * lun_list;
 
-void snb_LUN_service_init()
+static snb_block_config_t* config_list = NULL;
+static uint32_t snb_block_config_num = 0;
+
+int snb_parse_config(const char* file)
 {
-	lun_list = malloc(sizeof(snb_LUN_t));
-	lun_list[0].id = 0;
-	lun_list[0].file = fopen("/tmp/lun0","rw");
-	lun_list[0].nblock = 64;
-	lun_list[0].size = 64 * 128;
+	char* line = NULL;
+	char* pline;
+	char* token;
+	size_t len = 0;
+	ssize_t read;
+	snb_block_config_t * tmp_config;
+	snb_block_config_t * cur_config = config_list;
+	FILE *fp = fopen(file, "r");
+	if(fp == NULL) {
+		return -1;
+	}
+	while ((read = getline(&line, &len, fp)) != -1)
+	{
+		if((tmp_config = SNB_MALLOC(sizeof(*tmp_config))) == NULL)
+		{
+			SNB_TRACE("can not alloc new snb_block_config\n");
+			fclose(fp);
+			return -1;
+		}
+		pline = line;
+		token = strtok(pline, ":");
+		tmp_config->name = strdup(token);
+		token = strtok(NULL, ":");
+		tmp_config->path = strdup(token);
+		token = strtok(NULL, ":");
+		tmp_config->nblock = atoi(token);
+		token = strtok(NULL, ":");
+		tmp_config->size = atoi(token);
+		tmp_config->next = NULL;
+		snb_block_config_num++;
+		if(cur_config == NULL)
+		{
+			cur_config = tmp_config;
+			config_list = tmp_config;
+		}
+		else
+		{
+			cur_config->next = tmp_config;
+			cur_config = cur_config->next;
+		}
+
+	}
+	free(line);
+	fclose(fp);
+	return 0;
+}
+
+int snb_LUN_service_init(const char* file)
+{
+	int rc = 0;
+	int i = 0;
+	snb_block_config_t * cur_config = config_list;
+	rc = snb_parse_config(file);
+	if(rc < 0)
+		return rc;
+	lun_list = malloc(sizeof(snb_LUN_t) * snb_block_config_num);
+	for(i = 0 ; i < snb_block_config_num; i++) {
+		lun_list[i].id = i;
+		lun_list[i].config = cur_config;
+		lun_list[i].file = fopen(cur_config->path, "rw");
+		if(lun_list[i].file == NULL)
+		{
+			rc = -1;
+		}
+		cur_config = cur_config->next;
+	}
+	return rc;
 }
 
 void snb_LUN_service_push_command(uint16_t LUN_id, snb_command_t* cmd)
@@ -49,14 +114,14 @@ void snb_LUN_service_thread(void* args)
 				printf("LUN[%d] no memory\n", lun->id);
 			}
 			fread(pdata, size, 1, lun->file);
-			ack_cmd = snb_create_command_rw_ack(lun->id, pdata, 
+			ack_cmd = (snb_command_rw_t*)snb_create_command_rw_ack(lun->id, pdata, 
 			offset, size, cmd->rw_mask,snb_sucess);
 			free(pdata);
 		}
 		else if (SNB_IS_W_CMD(cmd->rw_mask))
 		{
 			fwrite(pdata, size, 1, lun->file);
-			ack_cmd = snb_create_command_rw_ack(lun->id, pdata, 
+			ack_cmd = (snb_command_rw_t*)snb_create_command_rw_ack(lun->id, pdata, 
 			offset, size, cmd->rw_mask,snb_sucess);
 		}
 	}
