@@ -5,6 +5,31 @@ static snb_LUN_t * lun_list;
 static snb_block_config_t* config_list = NULL;
 static uint32_t snb_block_config_num = 0;
 
+int snb_get_luns()
+{
+	return snb_block_config_num;
+}
+
+int snb_get_lun_id(uint16_t *array, int size)
+{
+	int i = 0;
+	if (size < snb_block_config_num)
+		return -1;
+	if (array == NULL)
+		return -1;
+	for (i = 0 ; i < snb_block_config_num; i++) {
+		array[i] = lun_list[i].id;
+	}
+	return 0;
+}
+
+snb_block_config_t * snb_get_lun_info(uint16_t id)
+{
+	if(id > snb_block_config_num)
+		return NULL;
+	return &config_list[id];
+}
+
 int snb_parse_config(const char* file)
 {
 	char* line = NULL;

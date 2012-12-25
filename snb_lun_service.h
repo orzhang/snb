@@ -28,4 +28,7 @@ int snb_LUN_service_init(const char* file);
 
 void snb_LUN_service_push_command(uint16_t LUN, snb_command_t* cmd);
 
+int snb_get_luns();
+int snb_get_lun_id(uint16_t *array, int size);
+snb_block_config_t * snb_get_lun_info(uint16_t id);
 #endif
