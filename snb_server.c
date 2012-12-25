@@ -270,6 +270,7 @@ error:
 
 int main()
 {
+    snb_LUN_service_init("./block.cfg");
 	server_init(8086);
     SNB_TRACE("server init ok\n");
     while(1)

@@ -27,16 +27,23 @@ int snb_parse_config(const char* file)
 			return -1;
 		}
 		pline = line;
+		pline[strlen(pline) - 1 ] = '\0';
 		token = strtok(pline, ":");
 		tmp_config->name = strdup(token);
-		token = strtok(NULL, ":");
-		tmp_config->path = strdup(token);
 		token = strtok(NULL, ":");
 		tmp_config->nblock = atoi(token);
 		token = strtok(NULL, ":");
 		tmp_config->size = atoi(token);
+		token = strtok(NULL, ":");
+		tmp_config->path = strdup(token);
 		tmp_config->next = NULL;
 		snb_block_config_num++;
+		SNB_TRACE("name=%s, path=%s, nblock=%d, size=%d\n",
+			tmp_config->name,
+			tmp_config->path,
+			tmp_config->nblock,
+			tmp_config->size);
+
 		if(cur_config == NULL)
 		{
 			cur_config = tmp_config;
@@ -58,15 +65,19 @@ int snb_LUN_service_init(const char* file)
 {
 	int rc = 0;
 	int i = 0;
-	snb_block_config_t * cur_config = config_list;
+	char path_buf[255];
+	snb_block_config_t * cur_config;
 	rc = snb_parse_config(file);
+	cur_config = config_list;
 	if(rc < 0)
 		return rc;
 	lun_list = malloc(sizeof(snb_LUN_t) * snb_block_config_num);
 	for(i = 0 ; i < snb_block_config_num; i++) {
 		lun_list[i].id = i;
 		lun_list[i].config = cur_config;
-		lun_list[i].file = fopen(cur_config->path, "rw");
+		bzero(path_buf, sizeof(path_buf));
+		sprintf(path_buf, "%s/%s", cur_config->path, cur_config->name);
+		lun_list[i].file = fopen(path_buf, "w+");
 		if(lun_list[i].file == NULL)
 		{
 			rc = -1;
