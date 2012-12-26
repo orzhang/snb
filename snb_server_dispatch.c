@@ -31,6 +31,7 @@ void snb_server_process_list(snb_command_t* cmd)
 		SNB_TRACE("no memory!!!\n");
 
 	rc = snb_sucess;
+	snb_get_lun_id(id_array, luns);
 	ack = snb_create_command_list_ack(id_array, luns, rc);
 	snb_session_push_command(cmd->parent, ack, pipe_out);
 }
@@ -39,8 +40,8 @@ void snb_server_process_info(snb_command_t* cmd)
 {
 	
 	uint16_t* LUNs;
-	uint16_t* block_num;
-	uint16_t* block_size;
+	uint32_t* block_num;
+	uint32_t* block_size;
 	int i = 0;
 	snb_block_config_t* config = NULL;
 	snb_command_rc_t rc;
@@ -48,11 +49,14 @@ void snb_server_process_info(snb_command_t* cmd)
 	snb_command_info_ack_t * ack;
 	snb_command_info_t * ask = (snb_command_info_t *)cmd;
 	LUNs = malloc(sizeof(uint16_t) * ask->size);
-	block_num = malloc(sizeof(uint16_t) * ask->size);
-	block_size = malloc(sizeof(uint16_t) * ask->size);
+	block_num = malloc(sizeof(uint32_t) * ask->size);
+	block_size = malloc(sizeof(uint32_t) * ask->size);
 	for (i = 0; i < ask->size; i++)
 	{
 		config = snb_get_lun_info(ask->LUNs[i]);
+		SNB_TRACE("%d,%d,%d\n",ask->LUNs[i],
+			config->nblock, config->size);
+
 		LUNs[i] = ask->LUNs[i];
 		block_num[i] = config->nblock;
 		block_size[i] = config->size;

@@ -194,34 +194,42 @@ int snb_pack_ping_command(uint8_t * buffer, snb_command_t *pcmd)
 int snb_pack_info_command(uint8_t * buffer, snb_command_t *pcmd)
 {
 	uint32_t pa_size = 0;
-	uint16_t* pbuffer;
+	uint8_t* pbuffer;
 	int i = 0;
 
 	if (buffer == NULL)
 		return -1;
-	
+	pbuffer = buffer;
 	if(pcmd->type == ask)
 	{
 		snb_command_info_t* cmd = (snb_command_info_t*)pcmd;
 		
-		pbuffer[0] = htons(cmd->size);
-		pbuffer++;
+		*((uint8_t*)pbuffer) = htons(cmd->size);
+		pbuffer += sizeof(cmd->size);
 		for (i = 0; i < cmd->size; i++)
 		{
-			pbuffer[i] = htons(cmd->LUNs[i]);
+			*((uint16_t*)pbuffer) = htons(cmd->LUNs[i]);
+			pbuffer += sizeof(cmd->LUNs[i]);
 		}
 		return 0;	
 	}
 	else
 	{
 		snb_command_info_ack_t* cmd = (snb_command_info_ack_t*)pcmd;
-		pbuffer[0] = htons(cmd->size);
-		pbuffer++;
+		*((uint8_t*)pbuffer) = htons(cmd->size);
+		pbuffer += sizeof(cmd->size);
 		for (i = 0; i < cmd->size; i++)
 		{
-			pbuffer[i] = htons(cmd->LUNs[i]);
-			pbuffer[i + cmd->size] = htons(cmd->block_num[i]);
-			pbuffer[i + (cmd->size * 2)] = htons(cmd->block_size[i]);
+			*((uint16_t*)pbuffer) = htons(cmd->LUNs[i]);
+			pbuffer += sizeof(uint16_t);
+			*((uint32_t*)pbuffer) = htonl(cmd->block_num[i]);
+			pbuffer += sizeof(uint32_t);
+			*((uint32_t*)pbuffer) = htonl(cmd->block_size[i]);
+			SNB_TRACE("[%d]:%d:%d\n",
+				cmd->LUNs[i],
+				cmd->block_num[i],
+				cmd->block_size[i]);
+			pbuffer += sizeof(uint32_t);
 		}
 		return 0;
 	}
@@ -235,7 +243,7 @@ int snb_pack_list_command(uint8_t * buffer, snb_command_t *pcmd)
 	int i = 0;
 	if (buffer == NULL)
 		return -1;
-	
+	pbuffer = buffer;
 	if(pcmd->type == ask)
 	{
 		snb_command_list_t* cmd = (snb_command_list_t*)pcmd;
@@ -437,7 +445,7 @@ int snb_unpack_info_command(const uint8_t * buffer, const snb_command_t * base,
 	uint16_t* LUNs = NULL;
 	uint32_t* block_num = NULL;
 	uint32_t* block_size = NULL;
-	const uint16_t* pbuffer = (const uint16_t*)buffer;
+	const uint8_t* pbuffer = buffer;
 	if(base->type == ask)
 	{
 		snb_command_info_t * cmd = SNB_MALLOC(sizeof(snb_command_info_t));
@@ -446,7 +454,8 @@ int snb_unpack_info_command(const uint8_t * buffer, const snb_command_t * base,
 			return -1;
 		}
 		cmd->base = *base;
-		cmd->size = ntohs(*pbuffer++);
+		cmd->size = ntohs(*((uint16_t*)pbuffer));
+		pbuffer += sizeof(uint16_t);
 		if ((LUNs = SNB_MALLOC(sizeof(uint16_t) * cmd->size)) == NULL)
 		{
 			SNB_FREE(cmd);
@@ -455,7 +464,9 @@ int snb_unpack_info_command(const uint8_t * buffer, const snb_command_t * base,
 
 		for(i = 0; i < cmd->size; i++)
 		{
-			LUNs[i] = ntohs(*pbuffer++);
+			LUNs[i] = ntohs(*((uint16_t*)pbuffer));
+			pbuffer += sizeof(uint16_t);
+			SNB_TRACE("LUNs %d\n",LUNs[i]);
 		}
 		cmd->LUNs = LUNs;
 		*pcmd = (snb_command_t*)cmd;
@@ -469,7 +480,8 @@ int snb_unpack_info_command(const uint8_t * buffer, const snb_command_t * base,
 			return -1;
 		}
 		cmd->base = *base;
-		cmd->size = ntohs(*pbuffer++);
+		cmd->size = ntohs(*((uint16_t*)pbuffer));
+		pbuffer += sizeof(cmd->size);
 		if (((LUNs = SNB_MALLOC(sizeof(uint16_t) * cmd->size)) == NULL) ||
 			((block_num = SNB_MALLOC(sizeof(uint32_t) * cmd->size)) == NULL) ||
 			((block_size = SNB_MALLOC(sizeof(uint32_t) * cmd->size)) == NULL))
@@ -483,9 +495,14 @@ int snb_unpack_info_command(const uint8_t * buffer, const snb_command_t * base,
 
 		for(i = 0; i < cmd->size; i++)
 		{
-			LUNs[i] = ntohs(pbuffer[i]);
-			block_num[i] = ntohs(pbuffer[i + cmd->size]);
-			block_size[i] = ntohs(pbuffer[i + (cmd->size * 2)]);
+			LUNs[i] = ntohs(*((uint16_t*)pbuffer));
+			pbuffer += sizeof(uint16_t);
+
+			block_num[i] = ntohl(*((uint32_t*)pbuffer));
+			pbuffer += sizeof(uint32_t);
+			
+			block_size[i] = ntohl(*((uint32_t*)pbuffer));
+			pbuffer += sizeof(uint32_t);
 		}
 
 		cmd->LUNs = LUNs;
@@ -522,7 +539,8 @@ int snb_unpack_list_command(const uint8_t * buffer, const snb_command_t * base,
 		}
 		*pcmd = (snb_command_t*)cmd;
 		cmd->base = *base;
-		cmd->size = ntohs(*pbuffer++);
+		cmd->size = ntohs(*pbuffer);
+		pbuffer++;
 		if ((cmd->LUNs = SNB_MALLOC(sizeof(uint16_t) * cmd->size)) == NULL)
 			return -1;
 		for(i = 0; i < cmd->size; i++)
@@ -562,7 +580,7 @@ snb_command_t* snb_create_command_list_ack(uint16_t * LUNs, uint16_t size, snb_c
 	cmd->base.rc = rc;
 	cmd->base.next = NULL;
 	cmd->size = size;
-	cmd->LUNs = SNB_MALLOC(sizeof(uint8_t) * size);
+	cmd->LUNs = SNB_MALLOC(sizeof(uint16_t) * size);
 
 	if(cmd->LUNs == NULL)
 	{
@@ -852,7 +870,7 @@ snb_msg_buf_t* snb_realloc_msg_buf(snb_msg_buf_t* buf, uint32_t size)
 	{
 		if((new_buf = malloc(sizeof(*buf))) == NULL)
 			return NULL;
-		if ((new_buf->buf = malloc(size)))
+		if ((new_buf->buf = malloc(size)) == NULL)
 		{
 			free(new_buf);
 			return NULL;
