@@ -173,6 +173,29 @@ void test_info()
 	}
 }
 
+void test_rw()
+{
+	char info[] = "hello world!";
+	snb_command_t* cmd = snb_create_command_rw(snb_LUNs[0],
+		info, 0, sizeof(info), SNB_CMD_ID_RW_MASK_W);
+
+	int expect = 0;
+	int i  = 0;
+	int ret;
+	uint8_t buf[1024];
+	uint8_t *pbuf = buf;
+	expect = cmd->length + SNB_COMMAND_HEAD_SIZE;
+	snb_pack_command(buf, sizeof(buf), cmd);
+	do {
+		ret = send(sock_fd, pbuf, expect, 0);
+		SNB_TRACE("send %d bytes\n", ret);
+		expect -= ret;
+		pbuf += ret;
+	} while (expect != 0);
+	SNB_TRACE("rw request sent\n");
+
+}
+
 int main()
 {
 	snb_connect(8086);

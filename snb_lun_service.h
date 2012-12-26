@@ -5,7 +5,7 @@
 #include <snb_common.h>
 #include <snb_protocal.h>
 #include <snb_session.h>
-
+#include <pthread.h>
 typedef struct snb_block_config {
 	struct snb_block_config* next;
 	char* name;
@@ -16,7 +16,7 @@ typedef struct snb_block_config {
 
 typedef struct snb_LUN
 {
-	uint16_t id;
+	pthread_t id;
 	FILE *file;
 	snb_block_config_t* config;
 	snb_command_pipe_t rw_pipe;

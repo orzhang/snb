@@ -4,6 +4,7 @@ static snb_LUN_t * lun_list;
 
 static snb_block_config_t* config_list = NULL;
 static uint32_t snb_block_config_num = 0;
+void snb_LUN_service_thread(void* args);
 
 int snb_get_luns()
 {
@@ -98,7 +99,6 @@ int snb_LUN_service_init(const char* file)
 		return rc;
 	lun_list = malloc(sizeof(snb_LUN_t) * snb_block_config_num);
 	for(i = 0 ; i < snb_block_config_num; i++) {
-		lun_list[i].id = i;
 		lun_list[i].config = cur_config;
 		bzero(path_buf, sizeof(path_buf));
 		sprintf(path_buf, "%s/%s", cur_config->path, cur_config->name);
@@ -108,6 +108,8 @@ int snb_LUN_service_init(const char* file)
 			rc = -1;
 		}
 		cur_config = cur_config->next;
+		pthread_create(&lun_list[i].id,
+			NULL, snb_LUN_service_thread, &lun_list[i]);
 	}
 	return rc;
 }
