@@ -13,6 +13,7 @@ int sock_fd;
 struct sockaddr_in addr;
 int snb_count = 0;
 uint16_t snb_LUNs[100];
+
 int snb_connect(uint16_t port)
 {
 	int rc = 0;
@@ -23,6 +24,7 @@ int snb_connect(uint16_t port)
 	addr.sin_port = htons(port);
 	inet_aton(DEFAULT_SERVER, &addr.sin_addr);
 	rc = connect(sock_fd, (struct sockaddr*)&addr, sizeof(addr));
+	return rc;
 }
 void test_ping()
 {
@@ -52,6 +54,7 @@ void test_ping()
 		SNB_TRACE("rc = %d\n", ack_cmd->rc);
 	}	
 }
+
 void test_login()
 {
 	int expect;
@@ -144,7 +147,7 @@ void test_info()
 		pbuf += ret;
 	} while (expect != 0);
 
-	SNB_TRACE("list sent\n");
+	SNB_TRACE("info request sent\n");
 	pbuf = buf;
 	ret = recv(sock_fd, pbuf, SNB_COMMAND_HEAD_SIZE, 0);
 	expect = SNB_COMMAND_HEAD_ATTR_LENGTH(buf);

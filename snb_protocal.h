@@ -139,7 +139,7 @@ snb_command_t* snb_create_command_list_ack(uint16_t * LUNs, uint16_t size, snb_c
 
 snb_command_t* snb_create_command_info(uint16_t * LUNs, uint16_t size);
 snb_command_t* snb_create_command_info_ack(uint16_t size, uint16_t* LUNs,
-	uint16_t* block_num, uint16_t* block_size, snb_command_rc_t rc);
+	uint32_t* block_num, uint32_t* block_size, snb_command_rc_t rc);
 
 snb_command_t* snb_create_command_ping(ping_type_t opt);
 snb_command_t* snb_create_command_ping_ack(snb_command_rc_t rc);

@@ -27,7 +27,7 @@ snb_block_config_t * snb_get_lun_info(uint16_t id)
 {
 	if(id > snb_block_config_num)
 		return NULL;
-	return &config_list[id];
+	return lun_list[id].config;
 }
 
 int snb_parse_config(const char* file)

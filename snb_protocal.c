@@ -632,7 +632,7 @@ snb_command_t* snb_create_command_info(uint16_t * LUNs, uint16_t size)
 }
 
 snb_command_t* snb_create_command_info_ack(uint16_t size, uint16_t* LUNs,
-	uint16_t* block_num, uint16_t* block_size, snb_command_rc_t rc)
+	uint32_t* block_num, uint32_t* block_size, snb_command_rc_t rc)
 {
 	int i = 0;
 	uint32_t plen = 0;
@@ -648,9 +648,9 @@ snb_command_t* snb_create_command_info_ack(uint16_t size, uint16_t* LUNs,
 	cmd->base.rc = rc;
 	cmd->base.next = 0;
 	cmd->size = size;
-	cmd->LUNs = SNB_MALLOC(sizeof(uint8_t) * size);
-	cmd->block_num = SNB_MALLOC(sizeof(uint8_t) * size);
-	cmd->block_size = SNB_MALLOC(sizeof(uint8_t) * size);
+	cmd->LUNs = SNB_MALLOC(sizeof(uint16_t) * size);
+	cmd->block_num = SNB_MALLOC(sizeof(uint32_t) * size);
+	cmd->block_size = SNB_MALLOC(sizeof(uint32_t) * size);
 	
 	if(cmd->LUNs == NULL ||
 		cmd->block_num == NULL ||
@@ -670,7 +670,9 @@ snb_command_t* snb_create_command_info_ack(uint16_t size, uint16_t* LUNs,
 	}
 
 	plen += sizeof(cmd->size);
-	plen += sizeof(LUNs[0]) * size * 3;
+	plen += sizeof(cmd->LUNs[0]) * size;
+	plen += sizeof(cmd->block_num[0]) * size;
+	plen += sizeof(cmd->block_size[0]) * size;
 	cmd->base.length = plen;
 	return ((snb_command_t*)cmd);
 }
