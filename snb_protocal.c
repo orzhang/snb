@@ -295,6 +295,7 @@ int snb_unpack_command(uint8_t * buffer, size_t size, snb_command_t ** pcmd)
 			break;
 		case SNB_CMD_ID_RW:
 			rc = snb_unpack_rw_command(pbuffer, &base, &cmd);
+			break;
 		default:
 			rc = -1;
 		break;
@@ -324,6 +325,7 @@ int snb_unpack_rw_command(const uint8_t * buffer, const snb_command_t * base,
 		snb_command_rw_t * cmd = SNB_MALLOC(sizeof(snb_command_rw_t));
 		if(cmd == NULL)
 			return -1;
+		cmd->base = *base;
 		if(SNB_IS_W_CMD(rw_mask))
 		{
 			if ((rw_data = SNB_MALLOC(size)) == NULL)
@@ -345,7 +347,7 @@ int snb_unpack_rw_command(const uint8_t * buffer, const snb_command_t * base,
 		snb_command_rw_ack_t * cmd = SNB_MALLOC(sizeof(snb_command_rw_ack_t));
 		if (cmd == NULL)
 			return -1;
-
+		cmd->base = *base;
 		if (SNB_IS_R_CMD(rw_mask))
 		{
 			if ((rw_data = SNB_MALLOC(size)) == NULL)

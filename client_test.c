@@ -175,7 +175,7 @@ void test_info()
 
 void test_rw()
 {
-	char info[] = "hello world!";
+	char info[] = "hello world!\n";
 	snb_command_t* cmd = snb_create_command_rw(snb_LUNs[0],
 		info, 0, sizeof(info), SNB_CMD_ID_RW_MASK_W);
 

@@ -11,7 +11,7 @@
 #define SNB_CMD_ID_RW_MASK_W (0x01)
 #define SNB_CMD_ID_RW_MAKS_FLUSH (0x02)
 #define SNB_IS_W_CMD(x) ((x & SNB_CMD_ID_RW_MASK_W) == 1)
-#define SNB_IS_R_CMD(x) ((x & SNB_CMD_ID_RW_MASK_R) == 0)
+#define SNB_IS_R_CMD(x) ((x & SNB_CMD_ID_RW_MASK_W) == 0)
 #define SNB_IS_FW_CMD(x) ((x & SNB_CMD_ID_RW_MASK_W) && (x & SNB_CMD_ID_RW_MAKS_FLUSH))
 
 #define SNB_MSG_MAX_BUFFER (1024*1024*10)

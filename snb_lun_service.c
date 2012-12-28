@@ -136,7 +136,7 @@ void snb_LUN_service_thread(void* args)
 		cmd = (snb_command_rw_t*)snb_session_pipe_pop_command(&lun->rw_pipe);
 		if(cmd == NULL)
 		{
-			sleep(10);
+			usleep(100);
 			continue;
 		}
 
@@ -161,6 +161,7 @@ void snb_LUN_service_thread(void* args)
 		else if (SNB_IS_W_CMD(cmd->rw_mask))
 		{
 			fwrite(pdata, size, 1, lun->file);
+			fflush(lun->file);
 			ack_cmd = (snb_command_rw_t*)snb_create_command_rw_ack(lun->id, pdata, 
 			offset, size, cmd->rw_mask,snb_sucess);
 		}
