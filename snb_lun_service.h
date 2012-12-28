@@ -16,7 +16,8 @@ typedef struct snb_block_config {
 
 typedef struct snb_LUN
 {
-	pthread_t id;
+	int id;
+	pthread_t pid;
 	FILE *file;
 	snb_block_config_t* config;
 	snb_command_pipe_t rw_pipe;

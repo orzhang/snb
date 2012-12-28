@@ -1,3 +1,8 @@
+
+
+
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -207,7 +212,6 @@ int main()
 	SNB_TRACE("\n");
 	test_info();
 	SNB_TRACE("\n");
-	test_rw();
 	getchar();
 	close(sock_fd);
 	return 0;
